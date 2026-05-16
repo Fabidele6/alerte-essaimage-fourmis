@@ -266,39 +266,7 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
 .sp-check-common{font-size:0.58rem;color:var(--muted);display:block}
 .sp-check-item.hidden-sp{display:none}
 
-/* ── PAGE RETOURS ── */
-#retours-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
-#retours-overlay.hidden{display:none}
-.retours-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative}
-.retours-box h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--accent);margin-bottom:4px}
-.retours-sub{font-size:0.65rem;color:var(--muted);margin-bottom:24px;text-transform:uppercase;letter-spacing:0.1em}
-.retours-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
-.retour-tab{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.62rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s}
-.retour-tab.active{background:rgba(168,196,74,0.1);border-color:var(--accent);color:var(--accent)}
-.retour-tab.bug-tab.active{background:rgba(196,90,42,0.1);border-color:var(--accent3);color:var(--accent3)}
-.retour-form{display:none}
-.retour-form.active{display:block}
-.retour-group{margin-bottom:14px}
-.retour-group label{display:block;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px}
-.retour-group label .req{color:var(--accent3)}
-.retour-input,.retour-select,.retour-textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;transition:border-color 0.2s}
-.retour-input:focus,.retour-select:focus,.retour-textarea:focus{outline:none;border-color:var(--accent)}
-.retour-input::placeholder,.retour-textarea::placeholder{color:var(--muted)}
-.retour-textarea{resize:vertical;min-height:100px;line-height:1.5}
-.retour-select{cursor:pointer}
-.retour-hint{font-size:0.6rem;color:var(--muted);margin-top:4px;line-height:1.5}
-.retour-submit{width:100%;background:var(--accent);color:#0d0f0a;border:none;padding:11px;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:500;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s;margin-top:8px}
-.retour-submit:hover{background:#c4e055;transform:translateY(-1px)}
-.retour-submit:disabled{background:var(--off);color:var(--muted);cursor:default;transform:none}
-.retour-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;transition:color 0.2s}
-.retour-close:hover{color:var(--accent3)}
-.retour-success{display:none;text-align:center;padding:24px 0}
-.retour-success .success-icon{font-size:2.5rem;margin-bottom:12px}
-.retour-success p{font-size:0.78rem;color:var(--text);line-height:1.6}
-.retour-success small{font-size:0.65rem;color:var(--muted)}
-.retour-error{font-size:0.65rem;color:var(--accent3);margin-top:6px;display:none}
-.btn-retours{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s}
-.btn-retours:hover{border-color:var(--accent2);color:var(--accent2)}
+/* ── REGION BAR ── */
 .region-bar{padding:14px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface)}
 .region-bar label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap}
 .country-tabs{display:flex;gap:4px}
@@ -453,6 +421,41 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
   .species-grid{padding:0 16px 24px;grid-template-columns:1fr}
   .header{padding:16px}
 }
+
+/* Bouton retours */
+.btn-retours{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.65rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s}
+.btn-retours:hover{border-color:var(--accent2);color:var(--accent2)}
+/* Page retours */
+#retours-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+#retours-overlay.hidden{display:none}
+.retours-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;position:relative}
+.retours-box h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--accent);margin-bottom:4px}
+.retours-sub{font-size:0.65rem;color:var(--muted);margin-bottom:24px;text-transform:uppercase;letter-spacing:0.1em}
+.retours-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.retour-tab{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.62rem;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s}
+.retour-tab.active{background:rgba(168,196,74,0.1);border-color:var(--accent);color:var(--accent)}
+.retour-tab.bug-tab.active{background:rgba(196,90,42,0.1);border-color:var(--accent3);color:var(--accent3)}
+.retour-form{display:none}
+.retour-form.active{display:block}
+.retour-group{margin-bottom:14px}
+.retour-group label{display:block;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px}
+.retour-group label .req{color:var(--accent3)}
+.retour-input,.retour-select,.retour-textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;transition:border-color 0.2s}
+.retour-input:focus,.retour-select:focus,.retour-textarea:focus{outline:none;border-color:var(--accent)}
+.retour-input::placeholder,.retour-textarea::placeholder{color:var(--muted)}
+.retour-textarea{resize:vertical;min-height:100px;line-height:1.5}
+.retour-select{cursor:pointer}
+.retour-hint{font-size:0.6rem;color:var(--muted);margin-top:4px}
+.retour-submit{width:100%;background:var(--accent);color:#0d0f0a;border:none;padding:11px;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;font-weight:500;cursor:pointer;text-transform:uppercase;letter-spacing:0.06em;transition:all 0.2s;margin-top:8px}
+.retour-submit:hover{background:#c4e055;transform:translateY(-1px)}
+.retour-submit:disabled{background:var(--off);color:var(--muted);cursor:default;transform:none}
+.retour-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;transition:color 0.2s}
+.retour-close:hover{color:var(--accent3)}
+.retour-success{display:none;text-align:center;padding:24px 0}
+.retour-success .success-icon{font-size:2.5rem;margin-bottom:12px}
+.retour-success p{font-size:0.78rem;color:var(--text);line-height:1.6}
+.retour-success small{font-size:0.65rem;color:var(--muted)}
+.retour-error{font-size:0.65rem;color:var(--accent3);margin-top:6px;display:none}
 </style>
 </head>
 <body>
@@ -506,117 +509,6 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
   </div>
 </div>
 
-<!-- PAGE RETOURS -->
-<div id="retours-overlay" class="hidden">
-  <div class="retours-box">
-    <button class="retour-close" onclick="closeRetours()">✕</button>
-    <h2>📝 Retours & Suggestions</h2>
-    <p class="retours-sub">Aide à améliorer l'application</p>
-
-    <div class="retours-tabs">
-      <button class="retour-tab active" onclick="switchRetourTab('espece', event)">🐜 Espèce</button>
-      <button class="retour-tab" onclick="switchRetourTab('bug', event)">🐛 Bug</button>
-      <button class="retour-tab" onclick="switchRetourTab('fonctionnalite', event)">💡 Idée</button>
-      <button class="retour-tab" onclick="switchRetourTab('autre', event)">💬 Autre</button>
-    </div>
-
-    <!-- Succès -->
-    <div class="retour-success" id="retour-success">
-      <div class="success-icon">✅</div>
-      <p><strong>Merci pour ton retour !</strong><br>Il a bien été enregistré et sera examiné lors de la prochaine mise à jour.</p>
-      <br><small>Tu peux aussi partager tes retours sur le <a href="https://www.facebook.com/groups/2224569748353681/" target="_blank" style="color:var(--accent)">groupe Facebook</a>.</small>
-      <br><br><button class="retour-submit" onclick="resetRetours()">Envoyer un autre retour</button>
-    </div>
-
-    <!-- ESPÈCE -->
-    <div class="retour-form active" id="form-espece">
-      <div class="retour-group">
-        <label>Type de retour <span class="req">*</span></label>
-        <select class="retour-select" id="espece-type">
-          <option value="">— Choisir —</option>
-          <option value="incorrecte">Espèce affichée incorrectement dans ma zone</option>
-          <option value="manquante">Espèce absente alors qu'elle est présente chez moi</option>
-          <option value="ajout">Nouvelle espèce à ajouter</option>
-          <option value="suppression">Espèce à supprimer</option>
-          <option value="conditions">Conditions météo incorrectes pour une espèce</option>
-        </select>
-      </div>
-      <div class="retour-group">
-        <label>Nom de l'espèce <span class="req">*</span></label>
-        <input class="retour-input" id="espece-nom" type="text" placeholder="Ex: Messor barbarus, Lasius niger...">
-      </div>
-      <div class="retour-group">
-        <label>Ta ville / région <span class="req">*</span></label>
-        <input class="retour-input" id="espece-ville" type="text" placeholder="Ex: Lyon, Hérault, Bruxelles...">
-      </div>
-      <div class="retour-group">
-        <label>Description du problème ou informations sur l'espèce</label>
-        <textarea class="retour-textarea" id="espece-desc" placeholder="Décris le problème ou fournis les infos sur l'espèce à ajouter (période d'essaimage, températures, conditions...)"></textarea>
-      </div>
-      <div class="retour-group">
-        <label>Source / référence (optionnel)</label>
-        <input class="retour-input" id="espece-source" type="text" placeholder="Ex: Forum Antarea, observation personnelle, publication scientifique...">
-      </div>
-      <p class="retour-error" id="espece-error">⚠️ Merci de remplir les champs obligatoires.</p>
-      <button class="retour-submit" onclick="submitRetour('espece')">Envoyer ce retour</button>
-    </div>
-
-    <!-- BUG -->
-    <div class="retour-form" id="form-bug">
-      <div class="retour-group">
-        <label>Description du bug <span class="req">*</span></label>
-        <textarea class="retour-textarea" id="bug-desc" placeholder="Décris ce qui ne fonctionne pas..."></textarea>
-      </div>
-      <div class="retour-group">
-        <label>Étapes pour reproduire le bug</label>
-        <textarea class="retour-textarea" id="bug-etapes" placeholder="1. J'ai cliqué sur...
-2. J'ai entré...
-3. Il s'est passé..."></textarea>
-      </div>
-      <div class="retour-group">
-        <label>Ton appareil / navigateur</label>
-        <input class="retour-input" id="bug-appareil" type="text" placeholder="Ex: iPhone 14 Safari, PC Windows Chrome...">
-      </div>
-      <div class="retour-group">
-        <label>Fréquence</label>
-        <select class="retour-select" id="bug-frequence">
-          <option value="">— Choisir —</option>
-          <option value="toujours">Toujours</option>
-          <option value="parfois">Parfois</option>
-          <option value="une_fois">Une seule fois</option>
-        </select>
-      </div>
-      <p class="retour-error" id="bug-error">⚠️ Merci de décrire le bug.</p>
-      <button class="retour-submit" onclick="submitRetour('bug')">Signaler ce bug</button>
-    </div>
-
-    <!-- IDÉE / FONCTIONNALITÉ -->
-    <div class="retour-form" id="form-fonctionnalite">
-      <div class="retour-group">
-        <label>Ta suggestion <span class="req">*</span></label>
-        <textarea class="retour-textarea" id="fonc-desc" placeholder="Décris la fonctionnalité ou l'amélioration que tu aimerais voir dans l'application..."></textarea>
-      </div>
-      <div class="retour-group">
-        <label>Pourquoi ce serait utile ?</label>
-        <textarea class="retour-textarea" id="fonc-pourquoi" placeholder="En quoi cette fonctionnalité améliorerait l'expérience ?"></textarea>
-      </div>
-      <p class="retour-error" id="fonc-error">⚠️ Merci de décrire ta suggestion.</p>
-      <button class="retour-submit" onclick="submitRetour('fonctionnalite')">Envoyer ma suggestion</button>
-    </div>
-
-    <!-- AUTRE -->
-    <div class="retour-form" id="form-autre">
-      <div class="retour-group">
-        <label>Ton message <span class="req">*</span></label>
-        <textarea class="retour-textarea" id="autre-message" placeholder="Pose ta question ou écris ton message..." style="min-height:140px"></textarea>
-      </div>
-      <p class="retour-error" id="autre-error">⚠️ Merci d'écrire un message.</p>
-      <button class="retour-submit" onclick="submitRetour('autre')">Envoyer</button>
-    </div>
-
-  </div>
-</div>
-
 <!-- LEGAL OVERLAY -->
 <div id="legal-overlay" class="hidden">
   <div class="legal-box">
@@ -655,7 +547,7 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
       </ul>
       <p>Pour exercer ces droits : <strong>contact via le forum où vous avez découvert l'application</strong> ou en supprimant votre compte directement.</p>
       <h4>6. Hébergement des données</h4>
-      <p>Les données sont hébergées sur Google Firebase (Firestore), serveurs européens. Politique de confidentialité Google : policies.google.com/privacy<br>Le site est hébergé sur GitHub Pages (github.com) et accessible via le domaine alerte-essaimage-fourmis.fr</p>
+      <p>Les données sont hébergées sur Google Firebase (Firestore), serveurs européens. Politique de confidentialité Google : policies.google.com/privacy</p>
       <h4>7. Cookies</h4>
       <p>Cette application n'utilise pas de cookies de tracking. Un token de session Firebase est stocké localement pour maintenir votre connexion.</p>
     </div>
@@ -680,9 +572,7 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
       <h4>Éditeur</h4>
       <p><strong>Fabien Delefosse</strong><br>Lagery, 51170 Marne, France<br>Projet personnel non commercial</p>
       <h4>Hébergement</h4>
-      <p><strong>GitHub Pages</strong><br>GitHub, Inc. — 88 Colin P. Kelly Jr. Street<br>San Francisco, CA 94107, USA<br>pages.github.com</p>
-      <h4>Nom de domaine</h4>
-      <p><strong>OVH SAS</strong> — 2 rue Kellermann, 59100 Roubaix, France<br>Domaine : alerte-essaimage-fourmis.fr</p>
+      <p><strong>Netlify, Inc.</strong><br>44 Montgomery Street, Suite 300<br>San Francisco, CA 94104, USA<br>netlify.com</p>
       <h4>Base de données</h4>
       <p><strong>Google Firebase (Firestore)</strong><br>Google LLC, 1600 Amphitheatre Pkwy<br>Mountain View, CA 94043, USA<br>firebase.google.com</p>
       <h4>Données météo</h4>
@@ -817,6 +707,83 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
   </div>
 </div>
 
+
+<!-- PAGE RETOURS -->
+<div id="retours-overlay" class="hidden">
+  <div class="retours-box">
+    <button class="retour-close" onclick="closeRetours()">&#x2715;</button>
+    <h2>&#x1F4DD; Retours &amp; Suggestions</h2>
+    <p class="retours-sub">Aide a ameliorer l'application</p>
+    <div class="retours-tabs">
+      <button class="retour-tab active" onclick="switchRetourTab('espece',event)">&#x1F41C; Espece</button>
+      <button class="retour-tab" onclick="switchRetourTab('bug',event)">&#x1F41B; Bug</button>
+      <button class="retour-tab" onclick="switchRetourTab('fonctionnalite',event)">&#x1F4A1; Idee</button>
+      <button class="retour-tab" onclick="switchRetourTab('autre',event)">&#x1F4AC; Autre</button>
+    </div>
+    <div class="retour-success" id="retour-success">
+      <div class="success-icon">&#x2705;</div>
+      <p><strong>Merci pour ton retour !</strong><br>Il a ete enregistre et sera examine lors de la prochaine mise a jour.</p>
+      <br><small>Tu peux aussi partager sur le <a href="https://www.facebook.com/groups/2224569748353681/" target="_blank" style="color:var(--accent)">groupe Facebook</a>.</small>
+      <br><br><button class="retour-submit" onclick="resetRetours()">Envoyer un autre retour</button>
+    </div>
+    <!-- ESPECE -->
+    <div class="retour-form active" id="form-espece">
+      <div class="retour-group"><label>Type de retour <span class="req">*</span></label>
+        <select class="retour-select" id="espece-type">
+          <option value="">-- Choisir --</option>
+          <option value="incorrecte">Espece affichee incorrectement dans ma zone</option>
+          <option value="manquante">Espece absente alors qu'elle est presente</option>
+          <option value="ajout">Nouvelle espece a ajouter</option>
+          <option value="suppression">Espece a supprimer</option>
+          <option value="conditions">Conditions meteo incorrectes</option>
+        </select></div>
+      <div class="retour-group"><label>Nom de l'espece <span class="req">*</span></label>
+        <input class="retour-input" id="espece-nom" type="text" placeholder="Ex: Messor barbarus, Lasius niger..."></div>
+      <div class="retour-group"><label>Ta ville / region <span class="req">*</span></label>
+        <input class="retour-input" id="espece-ville" type="text" placeholder="Ex: Lyon, Herault, Bruxelles..."></div>
+      <div class="retour-group"><label>Description</label>
+        <textarea class="retour-textarea" id="espece-desc" placeholder="Decris le probleme ou fournis les infos (periode d'essaimage, temperatures, conditions...)"></textarea></div>
+      <div class="retour-group"><label>Source (optionnel)</label>
+        <input class="retour-input" id="espece-source" type="text" placeholder="Ex: Forum Antarea, observation personnelle..."></div>
+      <p class="retour-error" id="espece-error">Merci de remplir les champs obligatoires.</p>
+      <button class="retour-submit" onclick="submitRetour('espece')">Envoyer ce retour</button>
+    </div>
+    <!-- BUG -->
+    <div class="retour-form" id="form-bug">
+      <div class="retour-group"><label>Description du bug <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="bug-desc" placeholder="Decris ce qui ne fonctionne pas..."></textarea></div>
+      <div class="retour-group"><label>Etapes pour reproduire</label>
+        <textarea class="retour-textarea" id="bug-etapes" placeholder="1. J'ai clique sur...&#10;2. J'ai entre...&#10;3. Il s'est passe..."></textarea></div>
+      <div class="retour-group"><label>Ton appareil / navigateur</label>
+        <input class="retour-input" id="bug-appareil" type="text" placeholder="Ex: iPhone 14 Safari, PC Chrome..."></div>
+      <div class="retour-group"><label>Frequence</label>
+        <select class="retour-select" id="bug-frequence">
+          <option value="">-- Choisir --</option>
+          <option value="toujours">Toujours</option>
+          <option value="parfois">Parfois</option>
+          <option value="une_fois">Une seule fois</option>
+        </select></div>
+      <p class="retour-error" id="bug-error">Merci de decrire le bug.</p>
+      <button class="retour-submit" onclick="submitRetour('bug')">Signaler ce bug</button>
+    </div>
+    <!-- IDEE -->
+    <div class="retour-form" id="form-fonctionnalite">
+      <div class="retour-group"><label>Ta suggestion <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="fonc-desc" placeholder="Decris la fonctionnalite ou l'amelioration souhaitee..."></textarea></div>
+      <div class="retour-group"><label>Pourquoi ce serait utile ?</label>
+        <textarea class="retour-textarea" id="fonc-pourquoi" placeholder="En quoi cette fonctionnalite ameliorerait l'experience ?"></textarea></div>
+      <p class="retour-error" id="fonc-error">Merci de decrire ta suggestion.</p>
+      <button class="retour-submit" onclick="submitRetour('fonctionnalite')">Envoyer ma suggestion</button>
+    </div>
+    <!-- AUTRE -->
+    <div class="retour-form" id="form-autre">
+      <div class="retour-group"><label>Ton message <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="autre-message" placeholder="Pose ta question ou ecris ton message..." style="min-height:140px"></textarea></div>
+      <p class="retour-error" id="autre-error">Merci d'ecrire un message.</p>
+      <button class="retour-submit" onclick="submitRetour('autre')">Envoyer</button>
+    </div>
+  </div>
+</div>
 <div id="loader"><div class="spinner"></div><p>Chargement…</p></div>
 <div class="toast" id="toast"></div>
 
@@ -825,7 +792,7 @@ body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--text
   <div class="header">
     <div class="header-left">
       <h1>🐜 Alerte Essaimage</h1>
-      <p id="header-location">alerte-essaimage-fourmis.fr</p>
+      <p id="header-location">France · Belgique · Suisse</p>
     </div>
     <div class="header-right">
       <div class="weather-badge" id="weather-badge" style="display:none">
@@ -1554,6 +1521,7 @@ async function checkAllZones(){
       if(newSp.length>0){
         await tg(`🐜 <b>Alerte Essaimage — ${z.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
         await logAlerte(z.name, w.country, newSp, w);
+        await notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+z.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
         sessionStorage.setItem(key,JSON.stringify(ready));
       }
     }catch(e){console.error('Zone check error:',z.name,e);}
@@ -1642,6 +1610,7 @@ ${sp.evening?`<div class="cond-row"><span class="cond-icon">🌆</span><span cla
     if(newSp.length>0&&CFG.token&&CFG.chatId){
       await tg(`🐜 <b>Alerte Essaimage — ${currentRegion.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
       await logAlerte(currentRegion.name, w.country, newSp, w);
+      await notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+currentRegion.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
       sessionStorage.setItem(prevKey,JSON.stringify(ready));
       showToast('🐜 Alerte Telegram envoyée !');
     }
@@ -1656,6 +1625,19 @@ async function tg(text){
   try{await fetch('https://api.telegram.org/bot'+CFG.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CFG.chatId,text,parse_mode:'HTML'})});}
   catch(e){console.error(e);}
 }
+
+// ── NOTIFICATIONS ADMIN TELEGRAM ─────────────────────────────────
+const ADMIN_TG_TOKEN="8687019817:AAHweHAbO6vQDv3Wi4v2G8u-3Oxs5NNYWdM";
+const ADMIN_TG_CHAT="7567035939";
+async function notifAdmin(text){
+  try{
+    await fetch('https://api.telegram.org/bot'+ADMIN_TG_TOKEN+'/sendMessage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:ADMIN_TG_CHAT,text,parse_mode:'HTML'})
+    });
+  }catch(e){console.error('notifAdmin:',e);}
+}
 async function sendTestTelegram(){
   if(!CFG.token||!CFG.chatId){openSetup();return;}
   showToast('📨 Envoi en cours…');
@@ -1664,97 +1646,7 @@ async function sendTestTelegram(){
   showToast('✅ Message envoyé sur Telegram !');
 }
 
-// ── PAGE RETOURS ─────────────────────────────────────────────────
-function openRetours(){document.getElementById('retours-overlay').classList.remove('hidden');}
-function closeRetours(){document.getElementById('retours-overlay').classList.add('hidden');}
-
-function switchRetourTab(tab, e){
-  document.querySelectorAll('.retour-tab').forEach(b=>b.classList.remove('active','bug-tab'));
-  e.target.classList.add('active');
-  if(tab==='bug') e.target.classList.add('bug-tab');
-  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
-  document.getElementById('form-'+tab).classList.add('active');
-  document.getElementById('retour-success').style.display='none';
-}
-
-function resetRetours(){
-  document.getElementById('retour-success').style.display='none';
-  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
-  document.getElementById('form-espece').classList.add('active');
-  document.querySelectorAll('.retour-tab').forEach((b,i)=>{b.classList.toggle('active',i===0);});
-  document.querySelectorAll('.retour-input,.retour-textarea,.retour-select').forEach(el=>el.value='');
-}
-
-async function submitRetour(type){
-  const now=new Date();
-  let data={
-    type, timestamp:now.toISOString(),
-    date:now.toISOString().split('T')[0],
-    userId:window._fbUser?window._fbUser.uid:'anonymous',
-    pseudo:CFG.name||'anonyme',
-    ville:currentRegion?currentRegion.name:'non renseignée'
-  };
-  let errEl, valid=true;
-
-  if(type==='espece'){
-    errEl=document.getElementById('espece-error');
-    const t=document.getElementById('espece-type').value;
-    const n=document.getElementById('espece-nom').value.trim();
-    const v=document.getElementById('espece-ville').value.trim();
-    if(!t||!n||!v){valid=false;}
-    else{
-      data.sousType=t;
-      data.especeNom=n;
-      data.especeVille=v;
-      data.description=document.getElementById('espece-desc').value.trim();
-      data.source=document.getElementById('espece-source').value.trim();
-    }
-  }else if(type==='bug'){
-    errEl=document.getElementById('bug-error');
-    const d=document.getElementById('bug-desc').value.trim();
-    if(!d){valid=false;}
-    else{
-      data.description=d;
-      data.etapes=document.getElementById('bug-etapes').value.trim();
-      data.appareil=document.getElementById('bug-appareil').value.trim();
-      data.frequence=document.getElementById('bug-frequence').value;
-    }
-  }else if(type==='fonctionnalite'){
-    errEl=document.getElementById('fonc-error');
-    const d=document.getElementById('fonc-desc').value.trim();
-    if(!d){valid=false;}
-    else{
-      data.description=d;
-      data.pourquoi=document.getElementById('fonc-pourquoi').value.trim();
-    }
-  }else if(type==='autre'){
-    errEl=document.getElementById('autre-error');
-    const m=document.getElementById('autre-message').value.trim();
-    if(!m){valid=false;}
-    else{data.message=m;}
-  }
-
-  if(!valid){errEl.style.display='block';return;}
-  errEl&&(errEl.style.display='none');
-
-  // Désactiver le bouton
-  const btn=document.querySelector('#form-'+type+' .retour-submit');
-  btn.disabled=true;btn.textContent='Envoi…';
-
-  try{
-    if(window._fbAdd&&window._fbCollection&&window._fbDb){
-      await window._fbAdd(window._fbCollection(window._fbDb,'retours'),data);
-    }
-    // Succès
-    document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
-    document.getElementById('retour-success').style.display='block';
-    if(window._fbLogEvent) window._fbLogEvent('retour_envoye',{type});
-  }catch(e){
-    console.error('Retour error:',e);
-    showToast('❌ Erreur lors de l\'envoi. Réessaie.');
-    btn.disabled=false;btn.textContent='Envoyer';
-  }
-}
+// ── LOG ALERTE (Firestore + Analytics) ───────────────────────────
 async function logAlerte(zone, pays, especes, meteo){
   const now=new Date();
   const logData={
@@ -1873,6 +1765,88 @@ function clearCity(){
 // ═══════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════
+// ── PAGE RETOURS ─────────────────────────────────────────────────
+function openRetours(){document.getElementById('retours-overlay').classList.remove('hidden');}
+function closeRetours(){document.getElementById('retours-overlay').classList.add('hidden');}
+function switchRetourTab(tab,e){
+  document.querySelectorAll('.retour-tab').forEach(b=>b.classList.remove('active','bug-tab'));
+  e.target.classList.add('active');
+  if(tab==='bug')e.target.classList.add('bug-tab');
+  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById('form-'+tab).classList.add('active');
+  document.getElementById('retour-success').style.display='none';
+}
+function resetRetours(){
+  document.getElementById('retour-success').style.display='none';
+  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById('form-espece').classList.add('active');
+  document.querySelectorAll('.retour-tab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.retour-input,.retour-textarea,.retour-select').forEach(el=>el.value='');
+}
+async function submitRetour(type){
+  const now=new Date();
+  let data={type,timestamp:now.toISOString(),date:now.toISOString().split('T')[0],
+    userId:window._fbUser?window._fbUser.uid:'anonymous',pseudo:CFG.name||'anonyme',
+    ville:currentRegion?currentRegion.name:'non renseignee'};
+  let errEl,valid=true,notifText='';
+  if(type==='espece'){
+    errEl=document.getElementById('espece-error');
+    const t=document.getElementById('espece-type').value;
+    const n=document.getElementById('espece-nom').value.trim();
+    const v=document.getElementById('espece-ville').value.trim();
+    if(!t||!n||!v){valid=false;}
+    else{
+      data.sousType=t;data.especeNom=n;data.especeVille=v;
+      data.description=document.getElementById('espece-desc').value.trim();
+      data.source=document.getElementById('espece-source').value.trim();
+      notifText='RETOUR ESPECE\n\nType : '+t+'\nEspece : '+n+'\nVille : '+v+'\nDescription : '+(data.description||'-')+'\nSource : '+(data.source||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='bug'){
+    errEl=document.getElementById('bug-error');
+    const d=document.getElementById('bug-desc').value.trim();
+    if(!d){valid=false;}
+    else{
+      data.description=d;
+      data.etapes=document.getElementById('bug-etapes').value.trim();
+      data.appareil=document.getElementById('bug-appareil').value.trim();
+      data.frequence=document.getElementById('bug-frequence').value;
+      notifText='BUG SIGNALE\n\nDescription : '+d+'\nEtapes : '+(data.etapes||'-')+'\nAppareil : '+(data.appareil||'-')+'\nFrequence : '+(data.frequence||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='fonctionnalite'){
+    errEl=document.getElementById('fonc-error');
+    const d=document.getElementById('fonc-desc').value.trim();
+    if(!d){valid=false;}
+    else{
+      data.description=d;data.pourquoi=document.getElementById('fonc-pourquoi').value.trim();
+      notifText='NOUVELLE IDEE\n\nSuggestion : '+d+'\nPourquoi : '+(data.pourquoi||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='autre'){
+    errEl=document.getElementById('autre-error');
+    const m=document.getElementById('autre-message').value.trim();
+    if(!m){valid=false;}
+    else{data.message=m;notifText='MESSAGE LIBRE\n\n'+m+'\n\nUtilisateur : '+data.pseudo;}
+  }
+  if(!valid){errEl.style.display='block';return;}
+  errEl&&(errEl.style.display='none');
+  const btn=document.querySelector('#form-'+type+' .retour-submit');
+  btn.disabled=true;btn.textContent='Envoi...';
+  try{
+    if(window._fbAdd&&window._fbCollection&&window._fbDb){
+      await window._fbAdd(window._fbCollection(window._fbDb,'retours'),data);
+    }
+    // Notif admin Telegram
+    const icons={espece:'🐜',bug:'🐛',fonctionnalite:'💡',autre:'💬'};
+    await notifAdmin(icons[type]+' <b>'+notifText.split('\n')[0]+'</b>\n\n'+notifText.split('\n').slice(2).join('\n'));
+    document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+    document.getElementById('retour-success').style.display='block';
+    if(window._fbLogEvent)window._fbLogEvent('retour_envoye',{type});
+  }catch(e){
+    console.error('Retour error:',e);
+    showToast('Erreur lors de l envoi. Reessaie.');
+    btn.disabled=false;btn.textContent='Envoyer';
+  }
+}
+
 function showLoader(on){
   document.getElementById('loader').classList.toggle('hidden',!on);
   document.getElementById('main').classList.toggle('visible',!on);
@@ -1952,6 +1926,7 @@ async function doRegister(){
       zones:[], selectedSpecies:[]
     });
     CFG.name=pseudo;
+    await notifAdmin('👤 <b>NOUVEAU COMPTE CREE</b>\n\n🐜 Pseudo : <b>'+pseudo+'</b>\n📋 Prenom : '+(prenom||'non renseigne')+'\n📋 Nom : '+(nom||'non renseigne')+'\n📧 Email : '+email+'\n🔍 Source : '+(source||'non renseignee')+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR'));
     // onAuthStateChanged prend le relais
   }catch(e){
     errEl.textContent=authErrorMsg(e.code);
@@ -2019,6 +1994,11 @@ window.onFirebaseReady = function(user){
     const displayName=user.displayName||CFG.name||user.email.split('@')[0];
     document.getElementById('user-display-name').textContent='👤 '+displayName;
     document.getElementById('user-badge').style.display='flex';
+    // Notif admin connexion (uniquement 1 fois par session)
+    if(!sessionStorage.getItem('admin_notif_connexion')){
+      notifAdmin('🟢 <b>CONNEXION</b>\n\n👤 Utilisateur : <b>'+displayName+'</b>\n📧 Email : '+user.email+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+      sessionStorage.setItem('admin_notif_connexion','1');
+    }
     // Tracker la connexion dans Analytics
     if(window._fbLogEvent){
       window._fbLogEvent('connexion', {
