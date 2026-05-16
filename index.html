@@ -2382,8 +2382,8 @@ async function submitRetour(type){
 }
 
 function showLoader(on){
-  document.getElementById('loader').classList.toggle('hidden',!on);
-  document.getElementById('main').classList.toggle('visible',!on);
+  const loader=document.getElementById('loader');
+  if(loader)loader.classList.toggle('hidden',!on);
 }
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
