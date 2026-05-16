@@ -1487,34 +1487,43 @@ function saveConfig(){
   CFG.selectedSpecies=checked.length===SPECIES.length?[]:checked;
   CFG.token=token;CFG.chatId=chatId;CFG.name=name;
   persistConfig();
-  closeSetup();updateNotifStatus();renderZonesStrip();renderMapZones();
+  updateNotifStatus();renderZonesStrip();renderMapZones();
   showToast('✅ Configuration sauvegardée !');
 }
 function skipConfig(){
   localStorage.setItem('essaimage_skipped','1');
-  closeSetup();updateNotifStatus();
+  updateNotifStatus();
 }
 function openSetup(){
-  document.getElementById('setup-token').value=CFG.token||'';
-  document.getElementById('setup-chatid').value=CFG.chatId||'';
-  document.getElementById('setup-name').value=CFG.name||'';
+  // Dans le nouveau design, on navigue vers Mon Compte
+  navigateTo('compte');
+  // Pré-remplir les champs
+  const t=document.getElementById('setup-token');
+  const c=document.getElementById('setup-chatid');
+  const n=document.getElementById('setup-name');
+  if(t)t.value=CFG.token||'';
+  if(c)c.value=CFG.chatId||'';
+  if(n)n.value=CFG.name||'';
   document.getElementById('setup-error').style.display='none';
   renderSetupZones();
   renderSpeciesChecklist();
-  document.getElementById('setup-overlay').classList.remove('hidden');
 }
-function closeSetup(){document.getElementById('setup-overlay').classList.add('hidden');}
+function closeSetup(){} // Plus de setup-overlay dans le nouveau design
 
 function updateNotifStatus(){
   const el=document.getElementById('notif-status-text');
   const btn=document.getElementById('test-btn');
+  const btnCompte=document.getElementById('test-btn-compte');
+  if(!el)return;
   if(CFG.token&&CFG.chatId){
     const who=CFG.name?' — <span>'+CFG.name+'</span>':'';
     el.innerHTML='Alertes <span>Telegram</span> actives'+who+' — Auto toutes les 30 min.';
-    btn.style.display='inline-block';
+    if(btn)btn.style.display='inline-block';
+    if(btnCompte)btnCompte.style.display='inline-block';
   }else{
-    el.innerHTML='Telegram non configuré — <a href="#" onclick="openSetup()">Configurer</a>';
-    btn.style.display='none';
+    el.innerHTML='Telegram non configuré — <a href="#" onclick="navigateTo(\'compte\')">Configurer dans Mon Compte</a>';
+    if(btn)btn.style.display='none';
+    if(btnCompte)btnCompte.style.display='none';
   }
 }
 
@@ -2517,8 +2526,6 @@ window.onFirebaseReady = function(user){
       CFG.selectedSpecies= window.CFG.selectedSpecies|| [];
     }
     const displayName=user.displayName||CFG.name||user.email.split('@')[0];
-    document.getElementById('user-display-name').textContent='👤 '+displayName;
-    document.getElementById('user-badge').style.display='flex';
     // Notif admin connexion (uniquement 1 fois par session)
     if(!sessionStorage.getItem('admin_notif_connexion')){
       notifAdmin('🟢 <b>CONNEXION</b>\n\n👤 Utilisateur : <b>'+displayName+'</b>\n📧 Email : '+user.email+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
@@ -2549,10 +2556,6 @@ function initApp(){
   loadConfig();
   showLoader(true);
   populateRegions();
-  // Afficher setup si Telegram pas configuré
-  if(!CFG.token&&!CFG.chatId){
-    document.getElementById('setup-overlay').classList.remove('hidden');
-  }
   updateNotifStatus();
   renderZonesStrip();
   setTimeout(()=>{
