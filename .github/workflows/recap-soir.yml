@@ -1,0 +1,28 @@
+name: Recap Soir 21h30
+
+on:
+  schedule:
+    - cron: '30 19 * * *'  # 21h30 heure française (UTC+2 été / UTC+1 hiver)
+  workflow_dispatch:        # Permet de lancer manuellement depuis GitHub
+
+jobs:
+  recap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin node-fetch
+
+      - name: Run recap script
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ADMIN_TG_TOKEN: "8687019817:AAHweHAbO6vQDv3Wi4v2G8u-3Oxs5NNYWdM"
+          ADMIN_TG_CHAT: "7567035939"
+        run: node recap-soir.js
