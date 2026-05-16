@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alerte Essaimage Fourmis</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500&family=Playfair+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDQWQkEPQgHNkbkYhOVBt2ZmzKwaDcPeF8",
+  authDomain: "alerte-essaimage.firebaseapp.com",
+  projectId: "alerte-essaimage",
+  storageBucket: "alerte-essaimage.firebasestorage.app",
+  messagingSenderId: "623043048500",
+  appId: "1:623043048500:web:b9877d20f4badf88238661"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const analytics = getAnalytics(app);
+
+// ── Exposer les fonctions Firebase au scope global ──
+window._fbAuth = auth;
+window._fbDb = db;
+window._fbAdd = addDoc;
+window._fbCollection = collection;
+window._fbLogEvent = (eventName, params) => logEvent(analytics, eventName, params);
+window._fbFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, doc, setDoc, getDoc, updateProfile, addDoc, collection };
+
+// Observer l'état de connexion
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    window._fbUser = user;
+    // Charger la config depuis Firestore
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        window.CFG = { ...window.CFG, ...data };
+        if (!window.CFG.zones) window.CFG.zones = [];
+        if (!window.CFG.selectedSpecies) window.CFG.selectedSpecies = [];
+      }
+    } catch(e) { console.error('Firestore load error:', e); }
+    window.onFirebaseReady(user);
+  } else {
+    window._fbUser = null;
+    window.onFirebaseReady(null);
+  }
+});
+
+// ── Fonction de test accessible depuis la console ──
+window.testFirestoreLog = async function(){
+  console.log('🧪 Test Firestore démarré...');
+  console.log('_fbDb:', !!window._fbDb);
+  console.log('_fbAdd:', !!window._fbAdd);
+  console.log('_fbUser:', window._fbUser ? window._fbUser.uid : 'non connecté');
+  if(!window._fbDb || !window._fbAdd){
+    console.error('❌ Firebase non prêt');
+    return;
+  }
+  try{
+    const docRef = await window._fbAdd(
+      window._fbCollection(window._fbDb, 'alertes'),
+      {
+        date: new Date().toISOString().split('T')[0],
+        heure: new Date().toTimeString().slice(0,5),
+        timestamp: new Date().toISOString(),
+        userId: window._fbUser ? window._fbUser.uid : 'anonymous',
+        zone: 'TEST',
+        pays: 'FR',
+        especes: ['Test espèce'],
+        nbEspeces: 1,
+        temperature: 25,
+        humidite: 60,
+        vent: 10,
+        heure_locale: new Date().getHours()
+      }
+    );
+    console.log('✅ Document créé dans Firestore ! ID:', docRef.id);
+    alert('✅ Firestore fonctionne ! ID: ' + docRef.id + '\nVa vérifier dans Firebase → Firestore → collection alertes');
+  }catch(e){
+    console.error('❌ Erreur Firestore:', e.code, e.message);
+    alert('❌ Erreur: ' + e.code + ' — ' + e.message);
+  }
+};
+
+// ── Notifications admin Telegram — exposées depuis le module ──
+const ADMIN_TG_TOKEN = "8687019817:AAHweHAbO6vQDv3Wi4v2G8u-3Oxs5NNYWdM";
+const ADMIN_TG_CHAT  = "7567035939";
+window.notifAdmin = async function(text){
+  try{
+    const r = await fetch('https://api.telegram.org/bot'+ADMIN_TG_TOKEN+'/sendMessage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:ADMIN_TG_CHAT, text, parse_mode:'HTML'})
+    });
+    const d = await r.json();
+    if(!d.ok) console.error('notifAdmin Telegram error:', d.description);
+    else console.log('✅ notifAdmin envoyé');
+  }catch(e){console.error('notifAdmin fetch error:',e);}
+};
+
+// Test notifAdmin depuis la console
+window.testNotifAdmin = function(){
+  window.notifAdmin('🧪 <b>TEST ADMIN</b>\n\nLes notifications admin fonctionnent !');
+};
+
+</script>
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN SYSTEM — BIOLUMINESCENT FOREST
+═══════════════════════════════════════════ */
+:root{
+  --bg:#070a06;
+  --bg2:#0c0f0b;
+  --surface:#111410;
+  --surface2:#171b14;
+  --border:rgba(168,196,74,0.12);
+  --border2:rgba(168,196,74,0.06);
+  --accent:#a8c44a;
+  --accent-glow:rgba(168,196,74,0.15);
+  --accent-dim:#6b8a2e;
+  --accent2:#e8b84b;
+  --accent3:#c45a2a;
+  --text:#e8edd8;
+  --text2:#b8bfaa;
+  --muted:#6b7257;
+  --muted2:#4a4f3e;
+  --off:#1e2318;
+  --nav-h:64px;
+  --radius:12px;
+  --radius-lg:20px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+/* Grain texture overlay */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:0.4;
+}
+
+/* ── TYPOGRAPHY ── */
+h1,h2,h3,h4,.nav-brand{font-family:'Syne',sans-serif;}
+.font-display{font-family:'Playfair Display',serif;}
+
+/* ── NAVBAR ── */
+.navbar{
+  position:fixed;top:0;left:0;right:0;height:var(--nav-h);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;z-index:1000;
+  background:rgba(7,10,6,0.7);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border2);
+  transition:all 0.3s;
+}
+.navbar.scrolled{
+  background:rgba(7,10,6,0.95);
+  border-bottom-color:var(--border);
+}
+.nav-brand{
+  display:flex;align-items:center;gap:10px;
+  font-size:1.05rem;font-weight:700;color:var(--text);
+  text-decoration:none;letter-spacing:-0.02em;
+}
+.nav-brand-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent-dim),var(--accent));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;
+}
+.nav-links{display:flex;align-items:center;gap:4px;}
+.nav-link{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 12px;border-radius:8px;
+  font-size:0.78rem;font-weight:500;color:var(--muted);
+  text-decoration:none;cursor:pointer;border:none;background:none;
+  font-family:'Inter',sans-serif;
+  transition:all 0.2s;white-space:nowrap;
+}
+.nav-link:hover{color:var(--text);background:var(--accent-glow);}
+.nav-link.active{color:var(--accent);background:var(--accent-glow);}
+.nav-link .nav-icon{font-size:0.9rem;}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.nav-user{
+  display:none;align-items:center;gap:8px;
+  padding:6px 12px;border-radius:8px;
+  background:var(--surface2);border:1px solid var(--border);
+  font-size:0.72rem;color:var(--text2);
+}
+.nav-user.visible{display:flex;}
+.nav-logout{
+  background:none;border:none;color:var(--muted);
+  font-size:0.7rem;cursor:pointer;font-family:'Inter',sans-serif;
+  transition:color 0.2s;padding:2px 4px;border-radius:4px;
+}
+.nav-logout:hover{color:var(--accent3);}
+
+/* Hamburger */
+.nav-hamburger{
+  display:none;background:none;border:1px solid var(--border);
+  color:var(--text);padding:8px 10px;border-radius:8px;cursor:pointer;
+  font-size:1rem;transition:all 0.2s;
+}
+.nav-hamburger:hover{background:var(--accent-glow);border-color:var(--accent);}
+
+/* Mobile nav */
+.mobile-nav{
+  display:none;position:fixed;top:var(--nav-h);left:0;right:0;
+  background:rgba(7,10,6,0.98);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);z-index:999;
+  padding:12px 16px;flex-direction:column;gap:4px;
+}
+.mobile-nav.open{display:flex;}
+.mobile-nav-link{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;border-radius:10px;
+  font-size:0.85rem;font-weight:500;color:var(--muted);
+  cursor:pointer;border:none;background:none;font-family:'Inter',sans-serif;
+  transition:all 0.2s;text-align:left;width:100%;
+}
+.mobile-nav-link:hover,.mobile-nav-link.active{
+  color:var(--accent);background:var(--accent-glow);
+}
+
+/* ── PAGES ── */
+.page{display:none;padding-top:var(--nav-h);min-height:100vh;}
+.page.active{display:block;}
+
+/* ── LOADER ── */
+#loader{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:2000;gap:16px;transition:opacity 0.4s;
+}
+#loader.hidden{opacity:0;pointer-events:none;}
+.loader-ant{font-size:2.5rem;animation:float 2s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.loader-bar{width:200px;height:2px;background:var(--off);border-radius:2px;overflow:hidden;}
+.loader-progress{height:100%;background:linear-gradient(90deg,var(--accent-dim),var(--accent));border-radius:2px;animation:load 1.5s ease-in-out infinite;}
+@keyframes load{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+.loader-text{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.2em;font-family:'Syne',sans-serif;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--surface2);border:1px solid var(--accent);
+  color:var(--text);padding:12px 18px;border-radius:10px;
+  font-size:0.72rem;z-index:9999;
+  opacity:0;transform:translateY(10px);
+  transition:all 0.3s;max-width:300px;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* ════════════════════════════════════════
+   PAGE ACCUEIL
+════════════════════════════════════════ */
+.home-hero{
+  padding:48px 24px 32px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:24px;flex-wrap:wrap;
+  border-bottom:1px solid var(--border2);
+}
+.hero-left h1{
+  font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;
+  line-height:1.1;letter-spacing:-0.03em;
+  color:var(--text);margin-bottom:8px;
+}
+.hero-left h1 span{
+  color:transparent;
+  background:linear-gradient(135deg,var(--accent),#d4e87a);
+  -webkit-background-clip:text;background-clip:text;
+}
+.hero-left p{font-size:0.82rem;color:var(--muted);line-height:1.6;}
+.hero-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.weather-card{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:14px 18px;min-width:130px;
+  display:none;
+}
+.weather-card.visible{display:block;}
+.weather-temp{font-family:'Syne',sans-serif;font-size:2rem;font-weight:700;color:var(--accent2);line-height:1;}
+.weather-desc{font-size:0.62rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;}
+.weather-time{font-size:0.6rem;color:var(--muted2);margin-top:2px;}
+
+/* Alert banner */
+.alert-banner{
+  margin:16px 24px;padding:14px 20px;
+  border-radius:var(--radius);
+  border:1px solid rgba(168,196,74,0.4);
+  background:linear-gradient(135deg,rgba(168,196,74,0.08),rgba(168,196,74,0.03));
+  display:none;align-items:center;gap:12px;
+  font-size:0.78rem;
+  box-shadow:0 0 30px rgba(168,196,74,0.08);
+  animation:pulse-glow 3s ease-in-out infinite;
+}
+.alert-banner.visible{display:flex;}
+@keyframes pulse-glow{
+  0%,100%{box-shadow:0 0 20px rgba(168,196,74,0.05)}
+  50%{box-shadow:0 0 40px rgba(168,196,74,0.15)}
+}
+
+/* Conditions strip */
+.conditions-strip{
+  display:flex;gap:1px;background:var(--border2);
+  overflow-x:auto;scrollbar-width:none;
+}
+.conditions-strip::-webkit-scrollbar{display:none;}
+.cond-pill{
+  flex:1;min-width:88px;background:var(--surface);
+  padding:10px 16px;display:flex;align-items:center;gap:8px;
+  font-size:0.62rem;color:var(--muted);text-transform:uppercase;
+  letter-spacing:0.05em;white-space:nowrap;
+}
+.cond-val{color:var(--text);font-weight:500;margin-left:auto;}
+.cond-dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);flex-shrink:0;}
+.cond-dot.ok{background:var(--accent);box-shadow:0 0 8px rgba(168,196,74,0.6);}
+.cond-dot.warn{background:var(--accent2);}
+
+/* Location bar */
+.location-bar{
+  padding:12px 24px;display:flex;align-items:center;
+  gap:12px;flex-wrap:wrap;
+  background:var(--surface);border-bottom:1px solid var(--border2);
+}
+.loc-section{display:flex;align-items:center;gap:8px;}
+.loc-label{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;white-space:nowrap;}
+.country-tabs{display:flex;gap:3px;}
+.ctab{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:5px 10px;border-radius:6px;font-family:'Inter',sans-serif;
+  font-size:0.65rem;cursor:pointer;transition:all 0.2s;
+}
+.ctab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+.ctab:hover:not(.active){border-color:var(--muted);color:var(--text);}
+.region-select,.city-input{
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:7px 12px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.72rem;
+  transition:border-color 0.2s;outline:none;
+}
+.region-select:focus,.city-input:focus{border-color:var(--accent);}
+.region-select{cursor:pointer;max-width:220px;}
+.city-input{width:200px;}
+.city-input::placeholder{color:var(--muted);}
+.city-input-wrap{position:relative;}
+.city-results{
+  position:absolute;top:calc(100%+4px);left:0;right:0;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;
+  display:none;box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.city-results.open{display:block;}
+.city-result-item{
+  padding:9px 14px;font-size:0.7rem;cursor:pointer;
+  border-bottom:1px solid var(--border2);transition:background 0.15s;
+}
+.city-result-item:last-child{border-bottom:none;}
+.city-result-item:hover{background:var(--accent-glow);}
+.city-result-name{color:var(--text);font-weight:500;}
+.city-result-detail{font-size:0.6rem;color:var(--muted);}
+.city-active-badge{
+  display:none;align-items:center;gap:6px;
+  background:var(--accent-glow);border:1px solid rgba(168,196,74,0.3);
+  color:var(--accent);padding:5px 10px;border-radius:6px;font-size:0.65rem;
+}
+.city-active-badge.visible{display:flex;}
+.city-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem;}
+.city-clear:hover{color:var(--accent3);}
+
+/* Zones chips */
+.zones-strip{
+  padding:10px 24px;display:flex;gap:6px;flex-wrap:wrap;
+  border-bottom:1px solid var(--border2);
+}
+.zone-chip{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:4px 12px;font-size:0.62rem;
+  color:var(--muted);cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;gap:5px;
+}
+.zone-chip:hover,.zone-chip.active{
+  background:var(--accent-glow);border-color:var(--accent);color:var(--accent);
+}
+.zone-chip-dot{width:5px;height:5px;border-radius:50%;background:var(--muted);}
+.zone-chip.active .zone-chip-dot{background:var(--accent);}
+
+/* Notif section */
+.notif-bar{
+  padding:10px 24px;display:flex;align-items:center;
+  gap:12px;flex-wrap:wrap;
+  background:var(--surface);border-bottom:1px solid var(--border2);
+}
+.notif-text{font-size:0.7rem;color:var(--muted);flex:1;}
+.notif-text span{color:var(--accent);}
+.notif-text a{color:var(--accent);text-decoration:none;}
+.btn-test{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:6px 12px;border-radius:6px;font-family:'Inter',sans-serif;
+  font-size:0.65rem;cursor:pointer;transition:all 0.2s;
+}
+.btn-test:hover{border-color:var(--accent2);color:var(--accent2);}
+
+/* Map */
+.map-section{padding:16px 24px;border-bottom:1px solid var(--border2);}
+.map-label{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+#leaflet-map{height:240px;border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;}
+.leaflet-tile{filter:brightness(0.45) saturate(0.5) hue-rotate(55deg);}
+.leaflet-container{background:var(--bg);}
+.leaflet-control-zoom a{background:var(--surface2)!important;color:var(--accent)!important;border-color:var(--border)!important;}
+.leaflet-control-attribution{background:rgba(7,10,6,0.7)!important;color:var(--muted)!important;font-size:9px!important;}
+.custom-marker{position:relative;width:24px;height:24px;}
+.marker-pulse{position:absolute;inset:0;border-radius:50%;background:rgba(192,57,43,0.3);animation:mpulse 1.8s ease-in-out infinite;}
+.marker-dot{position:absolute;inset:4px;border-radius:50%;background:#e74c3c;box-shadow:0 0 10px rgba(231,76,60,0.8);}
+@keyframes mpulse{0%,100%{transform:scale(1);opacity:0.8}50%{transform:scale(1.6);opacity:0.3}}
+.zone-marker-tooltip{background:rgba(7,10,6,0.9)!important;border:1px solid var(--border)!important;color:var(--text)!important;font-family:'Inter',sans-serif!important;font-size:0.62rem!important;padding:3px 7px!important;border-radius:4px!important;}
+
+/* Toolbar */
+.toolbar{
+  padding:12px 24px;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.toolbar-left{display:flex;align-items:center;gap:10px;}
+.section-title{font-family:'Syne',sans-serif;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.15em;}
+.count-badge{
+  background:var(--accent-glow);border:1px solid rgba(168,196,74,0.3);
+  color:var(--accent);padding:3px 10px;border-radius:20px;font-size:0.6rem;
+}
+.toolbar-right{display:flex;align-items:center;gap:8px;}
+#refresh-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:5px 12px;border-radius:6px;font-family:'Inter',sans-serif;
+  font-size:0.62rem;cursor:pointer;transition:all 0.2s;
+}
+#refresh-btn:hover{border-color:var(--accent);color:var(--accent);}
+#last-update{font-size:0.6rem;color:var(--muted2);}
+
+/* Filter tabs */
+.filter-tabs{padding:0 24px 12px;display:flex;gap:4px;flex-wrap:wrap;}
+.ftab{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:5px 12px;border-radius:6px;font-family:'Inter',sans-serif;
+  font-size:0.62rem;cursor:pointer;transition:all 0.2s;
+}
+.ftab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+.ftab.warn-tab.active{background:rgba(232,184,75,0.1);border-color:var(--accent2);color:var(--accent2);}
+
+/* Species grid */
+.species-grid{
+  padding:0 24px 40px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;
+}
+.species-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:16px 18px;
+  position:relative;overflow:hidden;transition:all 0.3s;
+}
+.species-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--off);}
+.species-card.ready{border-color:rgba(168,196,74,0.35);background:linear-gradient(135deg,#111410 0%,#131810 100%);}
+.species-card.ready::before{background:linear-gradient(90deg,var(--accent),#d4e87a);box-shadow:0 0 12px rgba(168,196,74,0.4);}
+.species-card.partial{border-color:rgba(232,184,75,0.25);}
+.species-card.partial::before{background:var(--accent2);}
+.species-card:hover{transform:translateY(-2px);border-color:var(--border);}
+.species-card.hidden-card{display:none;}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.species-name{font-family:'Playfair Display',serif;font-style:italic;font-size:0.95rem;color:var(--text);line-height:1.2;}
+.common-name{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-top:2px;}
+.zone-tags{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;}
+.zone-tag{font-size:0.55rem;padding:2px 6px;border-radius:3px;border:1px solid var(--border);}
+.zone-tag.fr{border-color:rgba(0,85,164,0.4);color:#4a90d9;}
+.zone-tag.be{border-color:rgba(255,174,0,0.4);color:#c49a14;}
+.zone-tag.ch{border-color:rgba(220,0,0,0.4);color:#c44a4a;}
+.status-badge{font-size:0.58rem;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.07em;font-weight:600;white-space:nowrap;flex-shrink:0;margin-left:8px;}
+.badge-ready{background:rgba(168,196,74,0.15);color:var(--accent);border:1px solid rgba(168,196,74,0.4);animation:badge-glow 2s ease-in-out infinite;}
+@keyframes badge-glow{0%,100%{box-shadow:none}50%{box-shadow:0 0 10px rgba(168,196,74,0.3)}}
+.badge-partial{background:rgba(232,184,75,0.1);color:var(--accent2);border:1px solid rgba(232,184,75,0.3);}
+.badge-off{background:rgba(30,35,24,0.8);color:var(--muted);border:1px solid var(--off);}
+.conditions-list{display:flex;flex-direction:column;gap:4px;}
+.cond-row{display:flex;align-items:center;gap:7px;font-size:0.64rem;}
+.cond-icon{width:14px;text-align:center;flex-shrink:0;}
+.cond-label{color:var(--muted);flex:1;}
+.cond-value{color:var(--text);font-weight:500;}
+.cond-check{width:13px;height:13px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.52rem;flex-shrink:0;}
+.check-ok{background:rgba(168,196,74,0.15);color:var(--accent);}
+.check-no{background:var(--off);color:var(--muted);}
+.period-row{margin-top:9px;padding-top:9px;border-top:1px solid var(--border2);font-size:0.6rem;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.period-bar{display:flex;gap:2px;flex:1;}
+.month-seg{flex:1;height:3px;border-radius:2px;background:var(--off);}
+.month-seg.active{background:var(--accent);}
+.month-seg.current-active{background:var(--accent2);box-shadow:0 0 5px var(--accent2);}
+.card-notes{font-size:0.58rem;color:var(--muted);margin-top:7px;font-style:italic;}
+
+/* Error box */
+.error-box{
+  margin:12px 24px;padding:11px 16px;
+  border:1px solid var(--accent3);border-radius:8px;
+  background:rgba(196,90,42,0.08);font-size:0.72rem;color:var(--accent3);display:none;
+}
+
+/* FB Banner */
+.fb-banner{
+  margin:0 24px 16px;padding:14px 18px;
+  border:1px solid var(--border);border-left:3px solid #1877F2;
+  border-radius:var(--radius);background:rgba(24,119,242,0.04);
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.fb-banner-icon{width:34px;height:34px;border-radius:8px;background:#1877F2;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.fb-banner-text{flex:1;min-width:160px;}
+.fb-banner-text p{font-size:0.68rem;color:var(--text2);margin:0;line-height:1.5;}
+.fb-banner-text p span{color:#1877F2;font-weight:500;}
+.fb-banner-text small{font-size:0.6rem;color:var(--muted);}
+.fb-banner-btn{
+  background:#1877F2;color:#fff;border:none;
+  padding:7px 14px;border-radius:6px;font-family:'Inter',sans-serif;
+  font-size:0.67rem;cursor:pointer;text-decoration:none;
+  white-space:nowrap;transition:all 0.2s;display:inline-block;
+}
+.fb-banner-btn:hover{background:#1464d8;}
+
+/* Copyright */
+.copyright-footer{
+  text-align:center;padding:14px 24px;font-size:0.58rem;
+  color:var(--muted2);border-top:1px solid var(--border2);
+}
+.copyright-footer a{color:var(--muted2);text-decoration:none;transition:color 0.2s;}
+.copyright-footer a:hover{color:var(--accent);}
+
+/* ════════════════════════════════════════
+   PAGE ESPECES
+════════════════════════════════════════ */
+.page-header{
+  padding:40px 24px 28px;
+  border-bottom:1px solid var(--border2);
+}
+.page-header h2{
+  font-size:clamp(1.4rem,3vw,2rem);font-weight:800;
+  letter-spacing:-0.03em;margin-bottom:6px;
+}
+.page-header p{font-size:0.82rem;color:var(--muted);}
+.page-header h2 span{color:var(--accent);}
+
+.especes-search-bar{
+  padding:16px 24px;display:flex;gap:10px;align-items:center;
+  flex-wrap:wrap;border-bottom:1px solid var(--border2);
+}
+.especes-search{
+  flex:1;max-width:320px;background:var(--surface2);
+  border:1px solid var(--border);color:var(--text);
+  padding:9px 14px;border-radius:8px;font-family:'Inter',sans-serif;
+  font-size:0.72rem;outline:none;transition:border-color 0.2s;
+}
+.especes-search:focus{border-color:var(--accent);}
+.especes-search::placeholder{color:var(--muted);}
+.filter-genre{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.72rem;cursor:pointer;outline:none;
+}
+.especes-count{font-size:0.65rem;color:var(--muted);}
+.especes-count span{color:var(--accent);}
+.especes-grid{
+  padding:20px 24px 40px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;
+}
+.espece-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:18px;cursor:pointer;
+  transition:all 0.25s;
+}
+.espece-card:hover{
+  border-color:var(--border);transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(0,0,0,0.3);
+}
+.espece-card-name{font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;color:var(--text);margin-bottom:3px;}
+.espece-card-common{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px;}
+.espece-card-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;}
+.espece-tag{font-size:0.58rem;padding:2px 8px;border-radius:20px;border:1px solid var(--border);}
+.espece-tag.climate-temp{border-color:rgba(168,196,74,0.4);color:var(--accent);}
+.espece-tag.climate-med{border-color:rgba(232,184,75,0.4);color:var(--accent2);}
+.espece-tag.climate-mont{border-color:rgba(100,150,255,0.4);color:#6496ff;}
+.espece-tag.climate-all{border-color:var(--border);color:var(--muted);}
+.espece-card-period{font-size:0.6rem;color:var(--muted);}
+.espece-card-period span{color:var(--text);}
+
+/* Modal espèce */
+.espece-modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.8);
+  z-index:2500;display:flex;align-items:center;justify-content:center;
+  padding:16px;display:none;
+}
+.espece-modal-overlay.open{display:flex;}
+.espece-modal{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:28px;
+  max-width:560px;width:100%;max-height:85vh;overflow-y:auto;position:relative;
+}
+.espece-modal-close{
+  position:absolute;top:16px;right:16px;background:none;border:none;
+  color:var(--muted);cursor:pointer;font-size:1rem;transition:color 0.2s;
+}
+.espece-modal-close:hover{color:var(--accent3);}
+.modal-name{font-family:'Playfair Display',serif;font-style:italic;font-size:1.5rem;color:var(--text);margin-bottom:4px;}
+.modal-common{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;}
+.modal-section{margin-bottom:16px;}
+.modal-section-title{font-family:'Syne',sans-serif;font-size:0.65rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.modal-stat{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;}
+.modal-stat-label{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;}
+.modal-stat-value{font-size:0.85rem;color:var(--text);font-weight:500;}
+.modal-notes{font-size:0.75rem;color:var(--text2);line-height:1.6;font-style:italic;}
+.modal-period-bar{display:flex;gap:3px;margin-top:6px;}
+.modal-month{
+  flex:1;height:20px;border-radius:3px;background:var(--off);
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.45rem;color:var(--muted2);transition:all 0.2s;
+}
+.modal-month.active{background:rgba(168,196,74,0.2);color:var(--accent);}
+.modal-month.current{background:rgba(168,196,74,0.5);color:#0d0f0a;font-weight:700;}
+
+/* ════════════════════════════════════════
+   PAGE ÉLEVAGE  
+════════════════════════════════════════ */
+.elevage-grid{
+  padding:20px 24px 40px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;
+}
+.elevage-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:20px;
+  transition:all 0.25s;
+}
+.elevage-card:hover{border-color:var(--border);transform:translateY(-2px);}
+.elevage-card-icon{font-size:1.8rem;margin-bottom:10px;}
+.elevage-card-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.elevage-card-desc{font-size:0.72rem;color:var(--muted);line-height:1.6;margin-bottom:12px;}
+.elevage-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--accent-glow);border:1px solid rgba(168,196,74,0.3);
+  color:var(--accent);padding:4px 10px;border-radius:20px;font-size:0.6rem;
+}
+.coming-soon{
+  background:rgba(232,184,75,0.08);border:1px solid rgba(232,184,75,0.2);
+  color:var(--accent2);padding:3px 8px;border-radius:5px;font-size:0.58rem;
+}
+
+/* ════════════════════════════════════════
+   PAGE RETOURS
+════════════════════════════════════════ */
+.retours-container{padding:20px 24px 40px;max-width:640px;}
+.retours-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;}
+.retour-tab{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:7px 14px;border-radius:8px;font-family:'Inter',sans-serif;
+  font-size:0.7rem;cursor:pointer;transition:all 0.2s;
+}
+.retour-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+.retour-tab.bug-tab.active{background:rgba(196,90,42,0.1);border-color:var(--accent3);color:var(--accent3);}
+.retour-form{display:none;}
+.retour-form.active{display:block;}
+.retour-group{margin-bottom:14px;}
+.retour-group label{display:block;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;}
+.retour-group label .req{color:var(--accent3);}
+.retour-input,.retour-select,.retour-textarea{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:10px 14px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.75rem;
+  transition:border-color 0.2s;outline:none;
+}
+.retour-input:focus,.retour-select:focus,.retour-textarea:focus{border-color:var(--accent);}
+.retour-input::placeholder,.retour-textarea::placeholder{color:var(--muted);}
+.retour-textarea{resize:vertical;min-height:100px;line-height:1.6;}
+.retour-select{cursor:pointer;}
+.retour-submit{
+  background:var(--accent);color:#0d0f0a;border:none;
+  padding:11px 24px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.75rem;font-weight:700;cursor:pointer;
+  transition:all 0.2s;letter-spacing:0.05em;
+}
+.retour-submit:hover{background:#c4e055;transform:translateY(-1px);}
+.retour-submit:disabled{background:var(--off);color:var(--muted);cursor:default;transform:none;}
+.retour-error{font-size:0.65rem;color:var(--accent3);margin-top:6px;display:none;}
+.retour-success{display:none;padding:32px;text-align:center;}
+.retour-success .success-icon{font-size:2.5rem;margin-bottom:12px;}
+.retour-success p{font-size:0.82rem;color:var(--text2);line-height:1.6;}
+.retour-success small{font-size:0.65rem;color:var(--muted);}
+
+/* ════════════════════════════════════════
+   PAGE MON COMPTE
+════════════════════════════════════════ */
+.compte-container{padding:20px 24px 40px;max-width:600px;}
+.compte-section{margin-bottom:28px;}
+.compte-section-title{
+  font-family:'Syne',sans-serif;font-size:0.65rem;font-weight:700;
+  color:var(--accent);text-transform:uppercase;letter-spacing:0.12em;
+  margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border2);
+}
+.compte-card{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:16px 18px;margin-bottom:8px;
+}
+.setup-group{margin-bottom:14px;}
+.setup-group label{display:block;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;}
+.setup-group label .req{color:var(--accent3);}
+.setup-input,.setup-select{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:10px 14px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.75rem;transition:border-color 0.2s;outline:none;
+}
+.setup-input:focus,.setup-select:focus{border-color:var(--accent);}
+.setup-input::placeholder{color:var(--muted);}
+.setup-select{cursor:pointer;}
+.setup-hint{font-size:0.6rem;color:var(--muted);margin-top:4px;line-height:1.5;}
+.setup-hint a{color:var(--accent);text-decoration:none;}
+.setup-btn{
+  background:var(--accent);color:#0d0f0a;border:none;
+  padding:11px 24px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.75rem;font-weight:700;cursor:pointer;
+  transition:all 0.2s;letter-spacing:0.05em;
+}
+.setup-btn:hover{background:#c4e055;transform:translateY(-1px);}
+.setup-btn-sec{
+  background:none;color:var(--muted);border:1px solid var(--border);
+  padding:9px 20px;border-radius:8px;font-family:'Inter',sans-serif;
+  font-size:0.7rem;cursor:pointer;transition:all 0.2s;margin-left:8px;
+}
+.setup-btn-sec:hover{border-color:var(--accent);color:var(--accent);}
+.setup-error{font-size:0.65rem;color:var(--accent3);margin-top:6px;display:none;}
+.setup-divider{border:none;border-top:1px solid var(--border2);margin:20px 0;}
+.setup-section-title{
+  font-family:'Syne',sans-serif;font-size:0.62rem;font-weight:700;
+  color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;
+}
+
+/* Zones manager */
+.zones-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:180px;overflow-y:auto;}
+.zone-item{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:8px;padding:8px 12px;font-size:0.68rem;
+}
+.zone-item-name{color:var(--text);flex:1;}
+.zone-item-coords{color:var(--muted);font-size:0.6rem;margin:0 8px;}
+.zone-item-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.8rem;transition:color 0.2s;}
+.zone-item-del:hover{color:var(--accent3);}
+.zone-empty{font-size:0.68rem;color:var(--muted);font-style:italic;padding:6px 0;}
+.zone-add-row{display:flex;gap:6px;}
+.zone-add-input{
+  flex:1;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:8px 12px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.7rem;outline:none;
+  transition:border-color 0.2s;
+}
+.zone-add-input:focus{border-color:var(--accent);}
+.zone-add-input::placeholder{color:var(--muted);}
+.zone-add-btn{
+  background:var(--accent);color:#0d0f0a;border:none;
+  padding:8px 14px;border-radius:8px;font-family:'Inter',sans-serif;
+  font-size:0.7rem;cursor:pointer;font-weight:600;transition:all 0.2s;
+}
+.zone-add-btn:hover{background:#c4e055;}
+.zone-results{position:relative;}
+.zone-suggestions{
+  position:absolute;top:4px;left:0;right:52px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;z-index:100;max-height:160px;overflow-y:auto;
+  display:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.zone-suggestions.open{display:block;}
+.zone-sug-item{
+  padding:8px 12px;font-size:0.68rem;cursor:pointer;
+  border-bottom:1px solid var(--border2);transition:background 0.15s;
+}
+.zone-sug-item:last-child{border-bottom:none;}
+.zone-sug-item:hover{background:var(--accent-glow);}
+.zone-sug-name{color:var(--text);font-weight:500;}
+.zone-sug-detail{color:var(--muted);font-size:0.6rem;}
+
+/* Species dropdown */
+.species-filter-wrap{margin-top:8px;}
+.species-filter-search{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:8px 12px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.7rem;
+  transition:border-color 0.2s;margin-bottom:8px;outline:none;
+}
+.species-filter-search:focus{border-color:var(--accent);}
+.species-filter-search::placeholder{color:var(--muted);}
+.species-select-actions{display:flex;gap:6px;margin-bottom:8px;}
+.sp-action-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:4px 10px;border-radius:5px;font-family:'Inter',sans-serif;
+  font-size:0.6rem;cursor:pointer;transition:all 0.2s;
+}
+.sp-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+.sp-count-badge{font-size:0.6rem;color:var(--muted);margin-bottom:8px;}
+.sp-count-badge span{color:var(--accent);}
+.species-dropdown{position:relative;}
+.species-dropdown-toggle{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:9px 14px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.7rem;cursor:pointer;
+  text-align:left;display:flex;align-items:center;justify-content:space-between;
+  transition:border-color 0.2s;
+}
+.species-dropdown-toggle:hover,.species-dropdown-toggle.open{border-color:var(--accent);}
+.toggle-arrow{transition:transform 0.2s;font-size:0.65rem;color:var(--muted);}
+.species-dropdown-toggle.open .toggle-arrow{transform:rotate(180deg);}
+.species-dropdown-list{
+  display:none;position:absolute;top:calc(100%+4px);left:0;right:0;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;z-index:200;max-height:240px;overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.species-dropdown-list.open{display:block;}
+.sp-check-item{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;
+  transition:background 0.12s;border-bottom:1px solid var(--border2);
+  user-select:none;
+}
+.sp-check-item:last-child{border-bottom:none;}
+.sp-check-item:hover{background:var(--accent-glow);}
+.sp-check-item.checked{background:rgba(168,196,74,0.04);}
+.sp-check-box{
+  width:14px;height:14px;border-radius:3px;border:1px solid var(--border);
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all 0.15s;font-size:0.6rem;color:transparent;
+}
+.sp-check-item.checked .sp-check-box{background:var(--accent);border-color:var(--accent);color:#0d0f0a;}
+.sp-check-label{flex:1;}
+.sp-check-name{font-size:0.68rem;color:var(--text);font-family:'Playfair Display',serif;font-style:italic;}
+.sp-check-common{font-size:0.58rem;color:var(--muted);display:block;}
+.sp-check-item.hidden-sp{display:none;}
+
+/* Docs section */
+.dl-btn{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border-radius:var(--radius);border:1px solid var(--border);
+  background:var(--bg2);cursor:pointer;transition:all 0.2s;
+  text-decoration:none;margin-bottom:8px;
+}
+.dl-btn:hover{border-color:var(--accent);background:var(--accent-glow);}
+.dl-icon{font-size:1.4rem;flex-shrink:0;}
+.dl-info{}
+.dl-title{font-size:0.75rem;color:var(--text);font-weight:500;display:block;}
+.dl-desc{font-size:0.62rem;color:var(--muted);display:block;margin-top:2px;}
+.dl-badge{
+  margin-left:auto;font-size:0.58rem;
+  background:var(--accent-glow);color:var(--accent);
+  border:1px solid rgba(168,196,74,0.3);padding:2px 8px;
+  border-radius:10px;white-space:nowrap;
+}
+
+/* Auth consent */
+.auth-consent{
+  display:flex;align-items:flex-start;gap:8px;margin-top:12px;
+  padding:10px 12px;background:var(--accent-glow);
+  border:1px solid rgba(168,196,74,0.2);border-radius:8px;
+}
+.auth-consent input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;margin-top:2px;cursor:pointer;}
+.auth-consent label{font-size:0.62rem;color:var(--muted);line-height:1.5;cursor:pointer;}
+.auth-consent label a{color:var(--accent);text-decoration:none;}
+
+/* Legal overlay */
+#legal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:4000;display:flex;align-items:center;justify-content:center;padding:16px;}
+#legal-overlay.hidden{display:none;}
+.legal-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 32px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;}
+.legal-box h3{font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--accent);margin-bottom:14px;font-weight:700;}
+.legal-box h4{font-size:0.75rem;color:var(--text);font-weight:600;margin:14px 0 5px;text-transform:uppercase;letter-spacing:0.06em;}
+.legal-box p,.legal-box li{font-size:0.72rem;color:var(--muted);line-height:1.7;margin-bottom:5px;}
+.legal-box ul{margin-left:18px;margin-bottom:6px;}
+.legal-close{width:100%;background:var(--accent);color:#0d0f0a;border:none;padding:10px;border-radius:8px;font-family:'Syne',sans-serif;font-size:0.72rem;font-weight:700;cursor:pointer;margin-top:14px;letter-spacing:0.05em;}
+
+/* Welcome modal */
+#welcome-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:3500;display:flex;align-items:center;justify-content:center;padding:16px;}
+#welcome-overlay.hidden{display:none;}
+.welcome-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;max-width:460px;width:100%;}
+.welcome-box h2{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--accent);margin-bottom:6px;}
+.welcome-box p{font-size:0.72rem;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.welcome-box p span{color:var(--accent);font-weight:500;}
+.welcome-downloads{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.welcome-continue{
+  width:100%;background:var(--accent);color:#0d0f0a;border:none;
+  padding:12px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.05em;
+}
+.welcome-continue:hover{background:#c4e055;transform:translateY(-1px);}
+.welcome-skip{
+  width:100%;background:none;border:none;color:var(--muted);
+  font-family:'Inter',sans-serif;font-size:0.65rem;cursor:pointer;
+  margin-top:8px;padding:6px;transition:color 0.2s;
+}
+.welcome-skip:hover{color:var(--text);}
+
+/* Auth overlay */
+#auth-overlay{position:fixed;inset:0;background:var(--bg);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px;}
+#auth-overlay.hidden{display:none;}
+.auth-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:36px;max-width:400px;width:100%;}
+.auth-box h2{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--accent);margin-bottom:4px;}
+.auth-sub{font-size:0.65rem;color:var(--muted);margin-bottom:24px;text-transform:uppercase;letter-spacing:0.1em;}
+.auth-tabs{display:flex;gap:4px;margin-bottom:20px;}
+.auth-tab{flex:1;background:none;border:1px solid var(--border);color:var(--muted);padding:8px;border-radius:8px;font-family:'Inter',sans-serif;font-size:0.68rem;cursor:pointer;transition:all 0.2s;}
+.auth-tab.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+.auth-group{margin-bottom:14px;}
+.auth-group label{display:block;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;}
+.auth-optional{font-size:0.58rem;color:var(--muted2);margin-left:4px;font-style:italic;}
+.auth-input,.auth-select{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);padding:10px 14px;border-radius:8px;
+  font-family:'Inter',sans-serif;font-size:0.75rem;
+  transition:border-color 0.2s;outline:none;
+}
+.auth-input:focus,.auth-select:focus{border-color:var(--accent);}
+.auth-input::placeholder{color:var(--muted);}
+.auth-select{cursor:pointer;}
+.auth-btn{
+  width:100%;background:var(--accent);color:#0d0f0a;border:none;
+  padding:12px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.2s;
+  margin-top:8px;letter-spacing:0.05em;
+}
+.auth-btn:hover{background:#c4e055;transform:translateY(-1px);}
+.auth-btn:disabled{background:var(--off);color:var(--muted);cursor:default;transform:none;}
+.auth-error{font-size:0.65rem;color:var(--accent3);margin-top:8px;display:none;line-height:1.4;}
+.auth-hint{font-size:0.6rem;color:var(--muted);margin-top:10px;text-align:center;line-height:1.5;}
+.auth-legal-links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+.auth-legal-links a{font-size:0.58rem;color:var(--muted);text-decoration:none;transition:color 0.2s;}
+.auth-legal-links a:hover{color:var(--accent);}
+
+/* Responsive */
+@media(max-width:768px){
+  .nav-links{display:none;}
+  .nav-hamburger{display:block;}
+  .home-hero{padding:28px 16px 20px;}
+  .location-bar,.zones-strip,.notif-bar,.map-section,.toolbar,.filter-tabs,.especes-search-bar,.page-header,.retours-container,.compte-container{padding-left:16px;padding-right:16px;}
+  .species-grid,.especes-grid,.elevage-grid{padding-left:16px;padding-right:16px;grid-template-columns:1fr;}
+  .hero-left h1{font-size:1.5rem;}
+  .modal-grid{grid-template-columns:1fr;}
+}
+@media(max-width:480px){
+  .navbar{padding:0 14px;}
+  .nav-brand span{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <h2>🐜 Alerte Essaimage</h2>
+    <p class="auth-sub">Connexion · Synchronisation multi-appareils</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Créer un compte</button>
+    </div>
+    <div id="auth-login-form">
+      <div class="auth-group"><label>Email</label><input class="auth-input" id="login-email" type="email" placeholder="ton@email.com" autocomplete="email"></div>
+      <div class="auth-group"><label>Mot de passe</label><input class="auth-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <p class="auth-error" id="login-error"></p>
+      <button class="auth-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+    </div>
+    <div id="auth-register-form" style="display:none">
+      <div class="auth-group"><label>Pseudo <span class="req" style="color:var(--accent3)">*</span></label><input class="auth-input" id="reg-pseudo" type="text" placeholder="Ex: Fabien, Myrméco51…" autocomplete="username"></div>
+      <div class="auth-group"><label>Prénom <span class="auth-optional">(optionnel)</span></label><input class="auth-input" id="reg-prenom" type="text" placeholder="Ton prénom" autocomplete="given-name"></div>
+      <div class="auth-group"><label>Nom <span class="auth-optional">(optionnel)</span></label><input class="auth-input" id="reg-nom" type="text" placeholder="Ton nom" autocomplete="family-name"></div>
+      <div class="auth-group"><label>Email <span class="req" style="color:var(--accent3)">*</span></label><input class="auth-input" id="reg-email" type="email" placeholder="ton@email.com" autocomplete="email"></div>
+      <div class="auth-group"><label>Mot de passe <span class="req" style="color:var(--accent3)">*</span></label><input class="auth-input" id="reg-password" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      <div class="auth-group"><label>Comment avez-vous connu l'app ? <span class="auth-optional">(optionnel)</span></label>
+        <select class="auth-select" id="reg-source">
+          <option value="">— Choisir —</option>
+          <option value="forum_antarea">Forum Antarea</option>
+          <option value="forum_myrmeco">Forum Myrmécofourmis</option>
+          <option value="facebook">Groupe Facebook</option>
+          <option value="discord">Serveur Discord</option>
+          <option value="bouche_oreille">Bouche à oreille</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div class="auth-consent">
+        <input type="checkbox" id="reg-consent">
+        <label for="reg-consent">J'accepte la <a href="#" onclick="showLegal('privacy')">Politique de confidentialité</a> et les <a href="#" onclick="showLegal('terms')">CGU</a>.</label>
+      </div>
+      <p class="auth-error" id="reg-error"></p>
+      <button class="auth-btn" id="reg-btn" onclick="doRegister()">Créer mon compte</button>
+    </div>
+    <div class="auth-legal-links">
+      <a href="#" onclick="showLegal('privacy')">Confidentialité</a>
+      <a href="#" onclick="showLegal('terms')">CGU</a>
+      <a href="#" onclick="showLegal('mentions')">Mentions légales</a>
+    </div>
+    <p class="auth-hint">Réglages synchronisés sur tous tes appareils.</p>
+  </div>
+</div>
+
+<!-- WELCOME MODAL -->
+<div id="welcome-overlay" class="hidden">
+  <div class="welcome-box">
+    <h2>🐜 Bienvenue !</h2>
+    <p>Ton compte est créé. Voici quelques documents utiles. Tu pourras les retrouver dans <span>Mon Compte</span>.</p>
+    <div class="welcome-downloads" id="welcome-downloads-container"></div>
+    <button class="welcome-continue" onclick="closeWelcome()">Commencer</button>
+    <button class="welcome-skip" onclick="closeWelcome()">Passer</button>
+  </div>
+</div>
+
+<!-- LEGAL OVERLAY -->
+<div id="legal-overlay" class="hidden">
+  <div class="legal-box">
+    <div id="legal-privacy" style="display:none">
+      <h3>🔒 Politique de confidentialité</h3>
+      <p><strong>Éditeur :</strong> Fabien Delefosse — Lagery, 51170 Marne</p>
+      <h4>Données collectées</h4>
+      <ul><li>Email, pseudo (obligatoires)</li><li>Prénom, nom, source de découverte (optionnels)</li><li>Zones, espèces sélectionnées, token Telegram</li><li>Date de consentement RGPD</li></ul>
+      <h4>Finalité</h4><p>Fonctionnement du compte et envoi des alertes météo. Vos données ne sont jamais vendues ni partagées.</p>
+      <h4>Droits (RGPD)</h4><p>Accès, rectification, effacement, portabilité, opposition. Contactez l'éditeur pour exercer vos droits.</p>
+      <h4>Hébergement</h4><p>GitHub Pages + Google Firebase (serveurs EU)</p>
+    </div>
+    <div id="legal-terms" style="display:none">
+      <h3>📋 Conditions d'utilisation</h3>
+      <p>Service gratuit d'aide à la capture de fourmis reines. Les données météo sont fournies par Open-Meteo et ne constituent pas une garantie de résultat.</p>
+      <h4>Propriété intellectuelle</h4><p>© 2025 Fabien Delefosse — Tous droits réservés.</p>
+      <h4>Droit applicable</h4><p>Droit français. Tribunaux français compétents.</p>
+    </div>
+    <div id="legal-mentions" style="display:none">
+      <h3>⚖️ Mentions légales</h3>
+      <p><strong>Fabien Delefosse</strong> — Lagery, 51170 Marne, France</p>
+      <h4>Hébergement</h4><p>GitHub Pages — github.com<br>Domaine : alerte-essaimage-fourmis.fr (OVH)</p>
+      <h4>Base de données</h4><p>Google Firebase (Firestore)</p>
+      <h4>© 2025 Fabien Delefosse — Tous droits réservés</h4>
+    </div>
+    <button class="legal-close" onclick="closeLegal()">✕ Fermer</button>
+  </div>
+</div>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-ant">🐜</div>
+  <div class="loader-bar"><div class="loader-progress"></div></div>
+  <p class="loader-text">Chargement…</p>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <a class="nav-brand" href="#" onclick="navigateTo('accueil')">
+    <div class="nav-brand-icon">🐜</div>
+    <span>Alerte Essaimage</span>
+  </a>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="navigateTo('accueil')" data-page="accueil"><span class="nav-icon">🏠</span>Accueil</button>
+    <button class="nav-link" onclick="navigateTo('especes')" data-page="especes"><span class="nav-icon">🐜</span>Espèces</button>
+    <button class="nav-link" onclick="navigateTo('elevage')" data-page="elevage"><span class="nav-icon">🔬</span>Élevage</button>
+    <button class="nav-link" onclick="navigateTo('retours')" data-page="retours"><span class="nav-icon">📝</span>Retours</button>
+    <button class="nav-link" onclick="navigateTo('compte')" data-page="compte"><span class="nav-icon">⚙️</span>Mon Compte</button>
+  </div>
+  <div class="nav-right">
+    <div class="nav-user" id="nav-user">
+      <span id="nav-user-name">—</span>
+      <button class="nav-logout" onclick="doLogout()">Déconnexion</button>
+    </div>
+    <button class="nav-hamburger" onclick="toggleMobileNav()" id="hamburger-btn">☰</button>
+  </div>
+</nav>
+
+<!-- MOBILE NAV -->
+<div class="mobile-nav" id="mobile-nav">
+  <button class="mobile-nav-link active" onclick="navigateTo('accueil');closeMobileNav()" data-page="accueil"><span>🏠</span>Accueil</button>
+  <button class="mobile-nav-link" onclick="navigateTo('especes');closeMobileNav()" data-page="especes"><span>🐜</span>Espèces</button>
+  <button class="mobile-nav-link" onclick="navigateTo('elevage');closeMobileNav()" data-page="elevage"><span>🔬</span>Élevage</button>
+  <button class="mobile-nav-link" onclick="navigateTo('retours');closeMobileNav()" data-page="retours"><span>📝</span>Retours</button>
+  <button class="mobile-nav-link" onclick="navigateTo('compte');closeMobileNav()" data-page="compte"><span>⚙️</span>Mon Compte</button>
+</div>
+
+<!-- ═══════════════ PAGE ACCUEIL ═══════════════ -->
+<div class="page active" id="page-accueil">
+  <div class="home-hero">
+    <div class="hero-left">
+      <h1>Ne ratez plus<br><span>aucun essaimage</span></h1>
+      <p>Alertes météo en temps réel · 46 espèces · France, Belgique, Suisse</p>
+    </div>
+    <div class="hero-right">
+      <div class="weather-card" id="weather-badge">
+        <div class="weather-temp" id="temp-display">—°</div>
+        <div class="weather-desc" id="weather-desc">—</div>
+        <div class="weather-time" id="weather-time">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="conditions-strip">
+    <div class="cond-pill"><div class="cond-dot" id="dot-temp"></div>Temp.<span class="cond-val" id="strip-temp">—</span></div>
+    <div class="cond-pill"><div class="cond-dot" id="dot-hum"></div>Humidité<span class="cond-val" id="strip-hum">—</span></div>
+    <div class="cond-pill"><div class="cond-dot" id="dot-wind"></div>Vent<span class="cond-val" id="strip-wind">—</span></div>
+    <div class="cond-pill"><div class="cond-dot" id="dot-time"></div>Heure<span class="cond-val" id="strip-time">—</span></div>
+    <div class="cond-pill"><div class="cond-dot" id="dot-storm"></div>Ciel<span class="cond-val" id="strip-sky">—</span></div>
+    <div class="cond-pill"><span id="strip-climate-icon">🌿</span>Zone<span class="cond-val" id="strip-climate">—</span></div>
+  </div>
+
+  <div class="location-bar">
+    <div class="loc-section">
+      <span class="loc-label">Pays</span>
+      <div class="country-tabs">
+        <button class="ctab active" onclick="setCountry('FR',event)">🇫🇷</button>
+        <button class="ctab" onclick="setCountry('BE',event)">🇧🇪</button>
+        <button class="ctab" onclick="setCountry('CH',event)">🇨🇭</button>
+      </div>
+    </div>
+    <div class="loc-section">
+      <span class="loc-label">Région</span>
+      <select class="region-select" id="region-select" onchange="onRegionChange()">
+        <option value="">— Choisir —</option>
+      </select>
+    </div>
+    <div class="loc-section">
+      <span class="loc-label">Ville</span>
+      <div class="city-input-wrap">
+        <input class="city-input" id="city-input" type="text" placeholder="Rechercher…" autocomplete="off" oninput="onCityInput()" onkeydown="onCityKey(event)">
+        <div class="city-results" id="city-results"></div>
+      </div>
+    </div>
+    <div class="city-active-badge" id="city-active-badge">
+      <span id="city-active-name">—</span>
+      <button class="city-clear" onclick="clearCity()">✕</button>
+    </div>
+  </div>
+
+  <div class="zones-strip" id="zones-strip"></div>
+
+  <div class="notif-bar">
+    <p class="notif-text" id="notif-status-text">Alertes <span>Telegram</span> — Configure dans Mon Compte.</p>
+    <button class="btn-test" id="test-btn" onclick="sendTestTelegram()" style="display:none">📨 Test</button>
+  </div>
+
+  <div class="map-section">
+    <div class="map-label">🗺️ Carte de surveillance</div>
+    <div id="leaflet-map"></div>
+  </div>
+
+  <div class="error-box" id="error-box"></div>
+
+  <div class="alert-banner" id="alert-banner">
+    <span style="font-size:1.3rem">⚠️</span>
+    <span id="alert-text">Conditions favorables !</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <span class="section-title">Espèces</span>
+      <span class="count-badge" id="count-badge">—</span>
+    </div>
+    <div class="toolbar-right">
+      <span id="last-update"></span>
+      <button id="refresh-btn" onclick="refreshAll()">↻ Actualiser</button>
+    </div>
+  </div>
+
+  <div class="filter-tabs">
+    <button class="ftab active" onclick="setFilter('all',event)">Toutes</button>
+    <button class="ftab" onclick="setFilter('ready',event)">✦ Prêtes</button>
+    <button class="ftab warn-tab" onclick="setFilter('partial',event)">◐ Partielles</button>
+    <button class="ftab" onclick="setFilter('off',event)">○ Hors saison</button>
+  </div>
+
+  <div class="species-grid" id="species-grid"></div>
+
+  <div class="fb-banner">
+    <div class="fb-banner-icon">📘</div>
+    <div class="fb-banner-text">
+      <p>Rejoins la <span>communauté Facebook</span> — partage tes captures et suis les mises à jour.</p>
+      <small>Groupe officiel · Alerte Essaimage Fourmis</small>
+    </div>
+    <a class="fb-banner-btn" href="https://www.facebook.com/groups/2224569748353681/" target="_blank" rel="noopener">Rejoindre →</a>
+  </div>
+
+  <div class="copyright-footer">
+    © 2025 Fabien Delefosse &nbsp;·&nbsp;
+    <a href="#" onclick="showLegal('privacy')">Confidentialité</a> &nbsp;·&nbsp;
+    <a href="#" onclick="showLegal('terms')">CGU</a> &nbsp;·&nbsp;
+    <a href="#" onclick="showLegal('mentions')">Mentions légales</a>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE ESPECES ═══════════════ -->
+<div class="page" id="page-especes">
+  <div class="page-header">
+    <h2>🐜 Les <span>46 espèces</span></h2>
+    <p>France, Belgique et Suisse — Clique sur une espèce pour voir sa fiche complète</p>
+  </div>
+  <div class="especes-search-bar">
+    <input class="especes-search" id="especes-search" type="text" placeholder="🔍 Rechercher une espèce…" oninput="filterEspecesPage()">
+    <select class="filter-genre" id="especes-genre-filter" onchange="filterEspecesPage()">
+      <option value="">Tous les genres</option>
+      <option value="Lasius">Lasius</option>
+      <option value="Formica">Formica</option>
+      <option value="Myrmica">Myrmica</option>
+      <option value="Camponotus">Camponotus</option>
+      <option value="Tetramorium">Tetramorium</option>
+      <option value="Messor">Messor</option>
+      <option value="Crematogaster">Crematogaster</option>
+      <option value="Autres">Autres genres</option>
+    </select>
+    <span class="especes-count" id="especes-count"><span>46</span> espèces</span>
+  </div>
+  <div class="especes-grid" id="especes-grid"></div>
+</div>
+
+<!-- Modal espèce -->
+<div class="espece-modal-overlay" id="espece-modal">
+  <div class="espece-modal">
+    <button class="espece-modal-close" onclick="closeEspeceModal()">✕</button>
+    <div id="espece-modal-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE ELEVAGE ═══════════════ -->
+<div class="page" id="page-elevage">
+  <div class="page-header">
+    <h2>🔬 Guides <span>d'élevage</span></h2>
+    <p>Tout ce qu'il faut savoir pour élever tes fourmis — En cours de construction avec la communauté</p>
+  </div>
+  <div class="elevage-grid">
+    <div class="elevage-card">
+      <div class="elevage-card-icon">🏠</div>
+      <div class="elevage-card-title">Guide de fondation</div>
+      <div class="elevage-card-desc">Comment démarrer une colonie depuis une gyne capturée lors d'un essaimage. Setup, diapause, premières ouvrières...</div>
+      <span class="coming-soon">Bientôt disponible</span>
+    </div>
+    <div class="elevage-card">
+      <div class="elevage-card-icon">🌿</div>
+      <div class="elevage-card-title">Emplacements de capture</div>
+      <div class="elevage-card-desc">Où trouver chaque espèce lors des essaimages — sous-bois, chemins, prairies, garrigue, troncs...</div>
+      <span class="coming-soon">Bientôt disponible</span>
+    </div>
+    <div class="elevage-card">
+      <div class="elevage-card-icon">🍽️</div>
+      <div class="elevage-card-title">Alimentation par espèce</div>
+      <div class="elevage-card-desc">Insectes, sucres, fréquence de nourrissage selon l'espèce et la taille de la colonie.</div>
+      <span class="coming-soon">Bientôt disponible</span>
+    </div>
+    <div class="elevage-card">
+      <div class="elevage-card-icon">🌡️</div>
+      <div class="elevage-card-title">Température & Humidité</div>
+      <div class="elevage-card-desc">Plages recommandées pour le nid et la zone d'activité, besoins en diapause hivernale...</div>
+      <span class="coming-soon">Bientôt disponible</span>
+    </div>
+    <div class="elevage-card">
+      <div class="elevage-card-icon">📏</div>
+      <div class="elevage-card-title">Caractéristiques par espèce</div>
+      <div class="elevage-card-desc">Tailles (gyne, major, ouvrière), taille maximale de colonie, comportement, difficulté d'élevage...</div>
+      <span class="coming-soon">Bientôt disponible</span>
+    </div>
+    <div class="elevage-card" style="border-style:dashed;cursor:pointer;" onclick="navigateTo('retours')">
+      <div class="elevage-card-icon">💡</div>
+      <div class="elevage-card-title">Tu veux contribuer ?</div>
+      <div class="elevage-card-desc">Partage tes connaissances sur une espèce via la page Retours. Chaque contribution enrichit la base pour toute la communauté.</div>
+      <span class="elevage-badge">→ Page Retours</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE RETOURS ═══════════════ -->
+<div class="page" id="page-retours">
+  <div class="page-header">
+    <h2>📝 Retours & <span>Suggestions</span></h2>
+    <p>Aide à améliorer l'application — chaque retour est examiné et pris en compte</p>
+  </div>
+  <div class="retours-container">
+    <div class="retours-tabs">
+      <button class="retour-tab active" onclick="switchRetourTab('espece',event)">🐜 Espèce</button>
+      <button class="retour-tab" onclick="switchRetourTab('bug',event)">🐛 Bug</button>
+      <button class="retour-tab" onclick="switchRetourTab('fonctionnalite',event)">💡 Idée</button>
+      <button class="retour-tab" onclick="switchRetourTab('autre',event)">💬 Autre</button>
+    </div>
+    <div class="retour-success" id="retour-success">
+      <div class="success-icon">✅</div>
+      <p><strong>Merci pour ton retour !</strong><br>Il a été enregistré et sera examiné lors de la prochaine mise à jour.</p>
+      <br><small>Tu peux aussi partager sur le <a href="https://www.facebook.com/groups/2224569748353681/" target="_blank" style="color:var(--accent)">groupe Facebook</a>.</small>
+      <br><br><button class="retour-submit" onclick="resetRetours()">Envoyer un autre retour</button>
+    </div>
+    <div class="retour-form active" id="form-espece">
+      <div class="retour-group"><label>Type <span class="req">*</span></label>
+        <select class="retour-select" id="espece-type">
+          <option value="">— Choisir —</option>
+          <option value="incorrecte">Espèce affichée incorrectement</option>
+          <option value="manquante">Espèce absente dans ma zone</option>
+          <option value="ajout">Nouvelle espèce à ajouter</option>
+          <option value="suppression">Espèce à supprimer</option>
+          <option value="conditions">Conditions météo incorrectes</option>
+        </select></div>
+      <div class="retour-group"><label>Nom de l'espèce <span class="req">*</span></label>
+        <input class="retour-input" id="espece-nom" type="text" placeholder="Ex: Messor barbarus, Lasius niger..."></div>
+      <div class="retour-group"><label>Ta ville / région <span class="req">*</span></label>
+        <input class="retour-input" id="espece-ville" type="text" placeholder="Ex: Lyon, Hérault, Bruxelles..."></div>
+      <div class="retour-group"><label>Description</label>
+        <textarea class="retour-textarea" id="espece-desc" placeholder="Décris le problème ou fournis les infos (période, températures, conditions...)"></textarea></div>
+      <div class="retour-group"><label>Source (optionnel)</label>
+        <input class="retour-input" id="espece-source" type="text" placeholder="Ex: Forum Antarea, observation personnelle..."></div>
+      <p class="retour-error" id="espece-error">Merci de remplir les champs obligatoires.</p>
+      <button class="retour-submit" onclick="submitRetour('espece')">Envoyer ce retour</button>
+    </div>
+    <div class="retour-form" id="form-bug">
+      <div class="retour-group"><label>Description du bug <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="bug-desc" placeholder="Décris ce qui ne fonctionne pas..."></textarea></div>
+      <div class="retour-group"><label>Étapes pour reproduire</label>
+        <textarea class="retour-textarea" id="bug-etapes" placeholder="1. J'ai cliqué sur...&#10;2. J'ai entré..."></textarea></div>
+      <div class="retour-group"><label>Ton appareil / navigateur</label>
+        <input class="retour-input" id="bug-appareil" type="text" placeholder="Ex: iPhone 14 Safari, PC Chrome..."></div>
+      <div class="retour-group"><label>Fréquence</label>
+        <select class="retour-select" id="bug-frequence">
+          <option value="">— Choisir —</option>
+          <option value="toujours">Toujours</option>
+          <option value="parfois">Parfois</option>
+          <option value="une_fois">Une seule fois</option>
+        </select></div>
+      <p class="retour-error" id="bug-error">Merci de décrire le bug.</p>
+      <button class="retour-submit" onclick="submitRetour('bug')">Signaler ce bug</button>
+    </div>
+    <div class="retour-form" id="form-fonctionnalite">
+      <div class="retour-group"><label>Ta suggestion <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="fonc-desc" placeholder="Décris la fonctionnalité ou l'amélioration souhaitée..."></textarea></div>
+      <div class="retour-group"><label>Pourquoi ce serait utile ?</label>
+        <textarea class="retour-textarea" id="fonc-pourquoi" placeholder="En quoi cette fonctionnalité améliorerait l'expérience ?"></textarea></div>
+      <p class="retour-error" id="fonc-error">Merci de décrire ta suggestion.</p>
+      <button class="retour-submit" onclick="submitRetour('fonctionnalite')">Envoyer ma suggestion</button>
+    </div>
+    <div class="retour-form" id="form-autre">
+      <div class="retour-group"><label>Ton message <span class="req">*</span></label>
+        <textarea class="retour-textarea" id="autre-message" placeholder="Pose ta question ou écris ton message..." style="min-height:140px"></textarea></div>
+      <p class="retour-error" id="autre-error">Merci d'écrire un message.</p>
+      <button class="retour-submit" onclick="submitRetour('autre')">Envoyer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PAGE MON COMPTE ═══════════════ -->
+<div class="page" id="page-compte">
+  <div class="page-header">
+    <h2>⚙️ Mon <span>Compte</span></h2>
+    <p>Gère tes alertes, tes zones et tes préférences</p>
+  </div>
+  <div class="compte-container">
+
+    <!-- Telegram -->
+    <div class="compte-section">
+      <div class="compte-section-title">📱 Alertes Telegram</div>
+      <div class="compte-card">
+        <div class="setup-group">
+          <label>Token du bot <span class="req">*</span></label>
+          <input class="setup-input" id="setup-token" type="text" placeholder="123456789:AAFxxxx..." autocomplete="off">
+          <p class="setup-hint">Via <a href="https://t.me/BotFather" target="_blank">@BotFather</a> sur Telegram — crée un bot gratuit en 2 min</p>
+        </div>
+        <div class="setup-group">
+          <label>Chat ID <span class="req">*</span></label>
+          <input class="setup-input" id="setup-chatid" type="text" placeholder="123456789" autocomplete="off">
+          <p class="setup-hint">Via <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> sur Telegram</p>
+        </div>
+        <div class="setup-group">
+          <label>Pseudo</label>
+          <input class="setup-input" id="setup-name" type="text" placeholder="Ex: Fabien, Myrméco51…" autocomplete="off">
+        </div>
+        <p class="setup-error" id="setup-error">⚠️ Token et Chat ID obligatoires.</p>
+        <button class="setup-btn" onclick="saveConfig()">✓ Enregistrer</button>
+        <button class="btn-test setup-btn-sec" id="test-btn-compte" onclick="sendTestTelegram()">📨 Message test</button>
+      </div>
+    </div>
+
+    <!-- Zones -->
+    <div class="compte-section">
+      <div class="compte-section-title">📍 Mes zones de surveillance</div>
+      <div class="compte-card">
+        <p style="font-size:0.68rem;color:var(--muted);margin-bottom:10px;line-height:1.5">Ajoute une ou plusieurs communes. Tu recevras une alerte séparée pour chacune.</p>
+        <div class="zones-list" id="setup-zones-list">
+          <p class="zone-empty" id="zone-empty-msg">Aucune zone ajoutée</p>
+        </div>
+        <div class="zone-results">
+          <div class="zone-add-row">
+            <input class="zone-add-input" id="zone-search-input" type="text" placeholder="Rechercher une ville…" autocomplete="off" oninput="onZoneInput()" onkeydown="onZoneKey(event)">
+            <button class="zone-add-btn" onclick="addZoneFromInput()">+ Ajouter</button>
+          </div>
+          <div class="zone-suggestions" id="zone-suggestions"></div>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="setup-btn" onclick="saveConfig()">✓ Sauvegarder les zones</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Espèces -->
+    <div class="compte-section">
+      <div class="compte-section-title">🐜 Espèces surveillées</div>
+      <div class="compte-card">
+        <p style="font-size:0.68rem;color:var(--muted);margin-bottom:10px;line-height:1.5">Sélectionne uniquement les espèces qui t'intéressent. Par défaut toutes sont actives.</p>
+        <div class="species-filter-wrap">
+          <input class="species-filter-search" id="sp-filter-search" type="text" placeholder="Filtrer par nom…" oninput="filterSpeciesChecklist()">
+          <div class="species-select-actions">
+            <button class="sp-action-btn" onclick="selectAllSpecies()">Tout cocher</button>
+            <button class="sp-action-btn" onclick="deselectAllSpecies()">Tout décocher</button>
+          </div>
+          <div class="sp-count-badge" id="sp-count-badge">— espèces sélectionnées</div>
+          <div class="species-dropdown">
+            <button class="species-dropdown-toggle" id="sp-dropdown-toggle" onclick="toggleSpeciesDropdown()">
+              <span id="sp-toggle-label">Sélectionner les espèces…</span>
+              <span class="toggle-arrow">▼</span>
+            </button>
+            <div class="species-dropdown-list" id="species-dropdown-list"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="setup-btn" onclick="saveConfig()">✓ Sauvegarder les espèces</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documents -->
+    <div class="compte-section">
+      <div class="compte-section-title">📥 Documents</div>
+      <div id="docs-container"></div>
+    </div>
+
+    <!-- Déconnexion -->
+    <div class="compte-section">
+      <div class="compte-section-title">👤 Mon compte</div>
+      <div class="compte-card">
+        <p style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;">Connecté en tant que <span id="compte-user-name" style="color:var(--accent)">—</span></p>
+        <button onclick="doLogout()" style="background:none;border:1px solid var(--accent3);color:var(--accent3);padding:8px 16px;border-radius:8px;font-family:'Inter',sans-serif;font-size:0.7rem;cursor:pointer;transition:all 0.2s;">Se déconnecter</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+let CFG={token:'',chatId:'',name:'',zones:[],selectedSpecies:[]};
+// selectedSpecies: [] = toutes actives, sinon tableau de noms
+
+function loadConfig(){
+  // Config chargée depuis Firestore via onAuthStateChanged
+  if(!CFG.zones)CFG.zones=[];
+  if(!CFG.selectedSpecies)CFG.selectedSpecies=[];
+}
+
+async function persistConfig(){
+  // Sauvegarder dans Firestore si connecté
+  if(window._fbUser&&window._fbFns&&window._fbDb){
+    try{
+      const {doc,setDoc}=window._fbFns;
+      await setDoc(doc(window._fbDb,'users',window._fbUser.uid),{
+        token:CFG.token||'',
+        chatId:CFG.chatId||'',
+        name:CFG.name||'',
+        zones:CFG.zones||[],
+        selectedSpecies:CFG.selectedSpecies||[]
+      });
+    }catch(e){console.error('Firestore save error:',e);}
+  }
+  // Garder aussi en localStorage comme fallback
+  localStorage.setItem('essaimage_cfg2',JSON.stringify(CFG));
+}
+
+function saveConfig(){
+  const token=document.getElementById('setup-token').value.trim();
+  const chatId=document.getElementById('setup-chatid').value.trim();
+  const name=document.getElementById('setup-name').value.trim();
+  if(!token||!chatId){document.getElementById('setup-error').style.display='block';return;}
+  document.getElementById('setup-error').style.display='none';
+  const checked=[...document.querySelectorAll('.sp-check-item.checked')].map(item=>item.dataset.name);
+  CFG.selectedSpecies=checked.length===SPECIES.length?[]:checked;
+  CFG.token=token;CFG.chatId=chatId;CFG.name=name;
+  persistConfig();
+  updateNotifStatus();renderZonesStrip();renderMapZones();
+  showToast('✅ Configuration sauvegardée !');
+}
+function skipConfig(){
+  localStorage.setItem('essaimage_skipped','1');
+  updateNotifStatus();
+}
+function openSetup(){
+  // Dans le nouveau design, on navigue vers Mon Compte
+  navigateTo('compte');
+  // Pré-remplir les champs
+  const t=document.getElementById('setup-token');
+  const c=document.getElementById('setup-chatid');
+  const n=document.getElementById('setup-name');
+  if(t)t.value=CFG.token||'';
+  if(c)c.value=CFG.chatId||'';
+  if(n)n.value=CFG.name||'';
+  document.getElementById('setup-error').style.display='none';
+  renderSetupZones();
+  renderSpeciesChecklist();
+}
+function closeSetup(){} // Plus de setup-overlay dans le nouveau design
+
+function updateNotifStatus(){
+  const el=document.getElementById('notif-status-text');
+  const btn=document.getElementById('test-btn');
+  const btnCompte=document.getElementById('test-btn-compte');
+  if(!el)return;
+  if(CFG.token&&CFG.chatId){
+    const who=CFG.name?' — <span>'+CFG.name+'</span>':'';
+    el.innerHTML='Alertes <span>Telegram</span> actives'+who+' — Auto toutes les 30 min.';
+    if(btn)btn.style.display='inline-block';
+    if(btnCompte)btnCompte.style.display='inline-block';
+  }else{
+    el.innerHTML='Telegram non configuré — <a href="#" onclick="navigateTo(\'compte\')">Configurer dans Mon Compte</a>';
+    if(btn)btn.style.display='none';
+    if(btnCompte)btnCompte.style.display='none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// GESTION ZONES (dans le setup)
+// ═══════════════════════════════════════════════════════
+let zoneSearchTimeout=null;
+let pendingZone=null;
+
+function renderSetupZones(){
+  const list=document.getElementById('setup-zones-list');
+  const emptyMsg=document.getElementById('zone-empty-msg');
+  // Supprimer les anciens items (garder le msg vide)
+  list.querySelectorAll('.zone-item').forEach(el=>el.remove());
+  if(CFG.zones.length===0){emptyMsg.style.display='block';return;}
+  emptyMsg.style.display='none';
+  CFG.zones.forEach((z,i)=>{
+    const item=document.createElement('div');
+    item.className='zone-item';
+    item.innerHTML=`<span class="zone-item-name">📍 ${z.name}</span><span class="zone-item-coords">${z.lat.toFixed(2)}°N ${z.lon.toFixed(2)}°E</span><button class="zone-item-del" onclick="removeZone(${i})">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+function removeZone(i){
+  CFG.zones.splice(i,1);
+  persistConfig();
+  renderSetupZones();
+  renderZonesStrip();
+  renderMapZones();
+}
+
+// ── ESPÈCES CHECKLIST ────────────────────────────────────────────
+// ── ESPÈCES DROPDOWN ─────────────────────────────────────────────
+function toggleSpeciesDropdown(){
+  const list=document.getElementById('species-dropdown-list');
+  const toggle=document.getElementById('sp-dropdown-toggle');
+  const isOpen=list.classList.contains('open');
+  list.classList.toggle('open',!isOpen);
+  toggle.classList.toggle('open',!isOpen);
+}
+// Fermer si clic ailleurs
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.species-dropdown')){
+    document.getElementById('species-dropdown-list')?.classList.remove('open');
+    document.getElementById('sp-dropdown-toggle')?.classList.remove('open');
+  }
+});
+
+function renderSpeciesChecklist(){
+  const list=document.getElementById('species-dropdown-list');
+  list.innerHTML='';
+  const allSelected=!CFG.selectedSpecies||CFG.selectedSpecies.length===0;
+  // Tri alphabétique par nom scientifique
+  const sorted=[...SPECIES].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  sorted.forEach(sp=>{
+    const isChecked=allSelected||CFG.selectedSpecies.includes(sp.name);
+    const item=document.createElement('div');
+    item.className='sp-check-item'+(isChecked?' checked':'');
+    item.dataset.name=sp.name;
+    item.innerHTML=`
+      <div class="sp-check-box">${isChecked?'✓':''}</div>
+      <div class="sp-check-label">
+        <span class="sp-check-name">${sp.name}</span>
+        <span class="sp-check-common">${sp.common}</span>
+      </div>`;
+    item.addEventListener('click',()=>toggleSpeciesItem(item,sp.name));
+    list.appendChild(item);
+  });
+  updateSpCount();
+  document.getElementById('sp-filter-search').value='';
+  updateDropdownToggleLabel();
+}
+
+function toggleSpeciesItem(item,name){
+  item.classList.toggle('checked');
+  const box=item.querySelector('.sp-check-box');
+  box.textContent=item.classList.contains('checked')?'✓':'';
+  updateSpCount();
+  updateDropdownToggleLabel();
+}
+
+function updateDropdownToggleLabel(){
+  const checked=document.querySelectorAll('.sp-check-item.checked').length;
+  const total=document.querySelectorAll('.sp-check-item').length;
+  const label=document.getElementById('sp-toggle-label');
+  if(!label)return;
+  if(checked===total||checked===0) label.textContent='Toutes les espèces sélectionnées';
+  else label.textContent=checked+' espèce'+(checked>1?'s':'')+' sélectionnée'+(checked>1?'s':'');
+}
+
+function updateSpCount(){
+  const total=document.querySelectorAll('.sp-check-item').length;
+  const checked=document.querySelectorAll('.sp-check-item.checked').length;
+  const el=document.getElementById('sp-count-badge');
+  if(el)el.innerHTML=`<span>${checked}</span> / ${total} espèces sélectionnées`;
+}
+
+function filterSpeciesChecklist(){
+  const q=document.getElementById('sp-filter-search').value.toLowerCase();
+  // Ouvrir le dropdown si on tape
+  if(q.length>0){
+    document.getElementById('species-dropdown-list').classList.add('open');
+    document.getElementById('sp-dropdown-toggle').classList.add('open');
+  }
+  document.querySelectorAll('.sp-check-item').forEach(item=>{
+    const name=item.dataset.name.toLowerCase();
+    const common=item.querySelector('.sp-check-common').textContent.toLowerCase();
+    item.classList.toggle('hidden-sp',q.length>0&&!name.includes(q)&&!common.includes(q));
+  });
+}
+
+function selectAllSpecies(){
+  document.querySelectorAll('.sp-check-item').forEach(item=>{
+    item.classList.add('checked');
+    item.querySelector('.sp-check-box').textContent='✓';
+  });
+  updateSpCount();updateDropdownToggleLabel();
+}
+function deselectAllSpecies(){
+  document.querySelectorAll('.sp-check-item').forEach(item=>{
+    item.classList.remove('checked');
+    item.querySelector('.sp-check-box').textContent='';
+  });
+  updateSpCount();updateDropdownToggleLabel();
+}
+
+function onZoneInput(){
+  clearTimeout(zoneSearchTimeout);
+  const q=document.getElementById('zone-search-input').value.trim();
+  if(q.length<2){closeZoneSuggestions();return;}
+  zoneSearchTimeout=setTimeout(()=>searchZone(q),400);
+}
+function onZoneKey(e){
+  if(e.key==='Enter'){clearTimeout(zoneSearchTimeout);searchZone(document.getElementById('zone-search-input').value.trim());}
+  if(e.key==='Escape')closeZoneSuggestions();
+}
+async function searchZone(q){
+  if(!q||q.length<2)return;
+  try{
+    const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=fr&format=json`);
+    const d=await r.json();
+    showZoneSuggestions(d.results||[]);
+  }catch(e){}
+}
+function showZoneSuggestions(results){
+  const box=document.getElementById('zone-suggestions');
+  box.innerHTML='';
+  if(!results.length){box.classList.remove('open');return;}
+  results.forEach(r=>{
+    const item=document.createElement('div');
+    item.className='zone-sug-item';
+    const detail=[r.admin1,r.country].filter(Boolean).join(', ');
+    item.innerHTML=`<div class="zone-sug-name">${r.name}</div><div class="zone-sug-detail">${detail}</div>`;
+    item.onclick=()=>selectZone(r);
+    box.appendChild(item);
+  });
+  box.classList.add('open');
+}
+function closeZoneSuggestions(){document.getElementById('zone-suggestions').classList.remove('open');}
+
+function selectZone(r){
+  pendingZone={name:r.name,lat:r.latitude,lon:r.longitude};
+  document.getElementById('zone-search-input').value=r.name;
+  closeZoneSuggestions();
+  addZoneFromInput();
+}
+function addZoneFromInput(){
+  if(pendingZone){
+    if(!CFG.zones.find(z=>z.name===pendingZone.name)){
+      CFG.zones.push(pendingZone);
+      persistConfig();
+      renderSetupZones();
+      renderZonesStrip();
+      renderMapZones();
+      showToast('📍 '+pendingZone.name+' ajoutée !');
+    }else{showToast('⚠️ Cette zone est déjà dans ta liste.');}
+    pendingZone=null;
+    document.getElementById('zone-search-input').value='';
+  }
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.zone-results'))closeZoneSuggestions();
+  if(!e.target.closest('.city-input-wrap'))closeCityResults();
+});
+
+// ═══════════════════════════════════════════════════════
+// ZONES STRIP (chips dans l'app principale)
+// ═══════════════════════════════════════════════════════
+function renderZonesStrip(){
+  const strip=document.getElementById('zones-strip');
+  strip.innerHTML='';
+  if(CFG.zones.length===0)return;
+  CFG.zones.forEach((z,i)=>{
+    const chip=document.createElement('div');
+    chip.className='zone-chip'+(currentRegion&&currentRegion.name===z.name?' active':'');
+    chip.innerHTML=`<div class="chip-dot"></div>${z.name}`;
+    chip.onclick=()=>selectZoneChip(z);
+    strip.appendChild(chip);
+  });
+}
+
+function selectZoneChip(z){
+  currentRegion={name:z.name,lat:z.lat,lon:z.lon};
+  // header-location removed
+  const _can1=document.getElementById('city-active-name');if(_can1)_can1.textContent='📍 '+z.name;
+  const _cab1=document.getElementById('city-active-badge');if(_cab1)_cab1.classList.add('visible');
+  document.getElementById('city-input').value=z.name;
+  updateMapMarker(z.lat,z.lon);
+  loadWeather();
+  renderZonesStrip();
+}
+
+// ═══════════════════════════════════════════════════════
+// CARTE LEAFLET
+// ═══════════════════════════════════════════════════════
+let map=null;
+let mainMarker=null;
+let zoneMarkers=[];
+
+function initMap(){
+  map=L.map('leaflet-map',{
+    center:[46.5,4.0],
+    zoom:5,
+    zoomControl:true,
+    attributionControl:true
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap',
+    maxZoom:18
+  }).addTo(map);
+}
+
+function createPulseIcon(){
+  return L.divIcon({
+    className:'',
+    html:`<div class="custom-marker"><div class="marker-pulse"></div><div class="marker-dot"></div></div>`,
+    iconSize:[24,24],
+    iconAnchor:[12,12]
+  });
+}
+
+// Marqueur simple pour les zones sauvegardées (petit point discret)
+function createSimpleZoneIcon(){
+  return L.divIcon({
+    className:'',
+    html:`<div style="width:10px;height:10px;border-radius:50%;background:#e8b84b;border:2px solid #0d0f0a;box-shadow:0 0 6px rgba(232,184,75,0.7)"></div>`,
+    iconSize:[10,10],
+    iconAnchor:[5,5]
+  });
+}
+
+function updateMapMarker(lat,lon){
+  if(!map)return;
+  if(mainMarker)mainMarker.remove();
+  mainMarker=L.marker([lat,lon],{icon:createPulseIcon()}).addTo(map);
+  map.flyTo([lat,lon],10,{duration:1.2});
+}
+
+// Contour rouge pour les régions
+let regionBoundary=null;
+async function showRegionBoundary(regionName,country){
+  if(!map)return;
+  // Effacer immédiatement l'ancien contour avant toute requête
+  if(regionBoundary){regionBoundary.remove();regionBoundary=null;}
+  const countryMap={'FR':'France','BE':'Belgium','CH':'Switzerland'};
+  const query=`${regionName}, ${countryMap[country]||'France'}`;
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&polygon_geojson=1`);
+    const d=await r.json();
+    if(!d.length||!d[0].geojson)return;
+    regionBoundary=L.geoJSON(d[0].geojson,{
+      style:{color:'#c0392b',weight:2.5,opacity:0.9,fillColor:'#c0392b',fillOpacity:0.08,dashArray:'6,4'}
+    }).addTo(map);
+    map.fitBounds(regionBoundary.getBounds(),{padding:[20,20],maxZoom:9,animate:true,duration:1});
+  }catch(e){console.error('Region boundary error:',e);}
+}
+
+function renderMapZones(){
+  if(!map)return;
+  zoneMarkers.forEach(m=>m.remove());
+  zoneMarkers=[];
+  CFG.zones.forEach(z=>{
+    const m=L.marker([z.lat,z.lon],{icon:createSimpleZoneIcon(),interactive:true})
+      .addTo(map)
+      .bindTooltip(z.name,{permanent:false,className:'leaflet-dark-tooltip',direction:'top',offset:[0,-8]})
+      .on('click',()=>selectZoneChip(z));
+    zoneMarkers.push(m);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// RÉGIONS & PAYS
+// ═══════════════════════════════════════════════════════
+const REGIONS={
+  FR:[
+    {name:"Île-de-France",lat:48.8566,lon:2.3522},
+    {name:"Hauts-de-France",lat:50.4801,lon:2.7937},
+    {name:"Normandie",lat:49.1829,lon:0.3707},
+    {name:"Bretagne",lat:48.2020,lon:-2.9326},
+    {name:"Pays de la Loire",lat:47.4784,lon:-0.5632},
+    {name:"Centre-Val de Loire",lat:47.7516,lon:1.6751},
+    {name:"Grand Est",lat:48.6991,lon:6.1862},
+    {name:"Bourgogne-Franche-Comté",lat:47.2805,lon:4.9994},
+    {name:"Auvergne-Rhône-Alpes",lat:45.7597,lon:4.8422},
+    {name:"Provence-Alpes-Côte d'Azur",lat:43.9352,lon:6.0679},
+    {name:"Occitanie",lat:43.6047,lon:1.4442},
+    {name:"Nouvelle-Aquitaine",lat:44.8378,lon:-0.5792},
+    {name:"Corse",lat:42.0396,lon:9.0129},
+  ],
+  BE:[
+    {name:"Bruxelles-Capitale",lat:50.8503,lon:4.3517},
+    {name:"Flandre occidentale",lat:51.0543,lon:3.7174},
+    {name:"Flandre orientale",lat:51.0368,lon:3.7196},
+    {name:"Anvers",lat:51.2194,lon:4.4025},
+    {name:"Limbourg (BE)",lat:50.9798,lon:5.3305},
+    {name:"Brabant flamand",lat:50.8813,lon:4.7009},
+    {name:"Brabant wallon",lat:50.5995,lon:4.5197},
+    {name:"Hainaut",lat:50.4108,lon:3.9668},
+    {name:"Namur",lat:50.4669,lon:4.8674},
+    {name:"Liège",lat:50.6320,lon:5.5797},
+    {name:"Luxembourg (BE)",lat:49.9817,lon:5.3104},
+  ],
+  CH:[
+    {name:"Genève",lat:46.2044,lon:6.1432},
+    {name:"Vaud",lat:46.5763,lon:6.5139},
+    {name:"Valais",lat:46.2324,lon:7.3601},
+    {name:"Fribourg",lat:46.8065,lon:7.1620},
+    {name:"Berne",lat:46.9481,lon:7.4474},
+    {name:"Neuchâtel",lat:46.9900,lon:6.9293},
+    {name:"Jura (CH)",lat:47.3667,lon:7.3500},
+    {name:"Zurich",lat:47.3769,lon:8.5417},
+    {name:"Bâle-Ville",lat:47.5596,lon:7.5886},
+    {name:"Argovie",lat:47.3887,lon:8.0460},
+    {name:"Soleure",lat:47.2088,lon:7.5323},
+    {name:"Lucerne",lat:47.0502,lon:8.3093},
+    {name:"Tessin",lat:46.3317,lon:8.8012},
+    {name:"Grisons",lat:46.6571,lon:9.5800},
+  ]
+};
+let currentCountry='FR';
+let currentRegion=null;
+let currentWeather=null;
+let currentFilter='all';
+let lastAlerted=[];
+
+function setCountry(country,e){
+  currentCountry=country;
+  document.querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));
+  if(e)e.target.classList.add('active');
+  populateRegions();
+  currentRegion=null;currentWeather=null;
+  document.getElementById('species-grid').innerHTML='';
+  document.getElementById('count-badge').textContent='—';
+}
+function populateRegions(){
+  const sel=document.getElementById('region-select');
+  sel.innerHTML='<option value="">— Choisir —</option>';
+  REGIONS[currentCountry].forEach((r,i)=>{const o=document.createElement('option');o.value=i;o.textContent=r.name;sel.appendChild(o);});
+}
+function onRegionChange(){
+  const idx=parseInt(document.getElementById('region-select').value);
+  if(isNaN(idx)){currentRegion=null;return;}
+  currentRegion=REGIONS[currentCountry][idx];
+  // header-location removed
+  (document.getElementById('city-active-badge')||{}).classList?.remove('visible');
+  document.getElementById('city-input').value='';
+  // Afficher le contour rouge de la région
+  showRegionBoundary(currentRegion.name,currentCountry);
+  loadWeather();
+}
+function setCountryCode(code){
+  currentCountry=code;
+  const map={'FR':0,'BE':1,'CH':2};
+  document.querySelectorAll('.ctab').forEach((b,i)=>{
+    b.classList.toggle('active', i===map[code]);
+  });
+  populateRegions();
+}
+
+// ═══════════════════════════════════════════════════════
+// ESPÈCES
+// ═══════════════════════════════════════════════════════
+const SPECIES=[
+  {name:"Lasius niger",common:"Fourmi noire des jardins",zones:["FR","BE","CH"],climate:"all",months:[5,6,7],tempMin:24,tempMax:40,humidMin:60,windMax:22,afterRain:true,evening:true,notes:"La plus commune d'Europe. Essaimage massif, pic mi-juillet."},
+  {name:"Lasius flavus",common:"Fourmi jaune des gazons",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:23,tempMax:38,humidMin:55,windMax:20,afterRain:true,evening:true,notes:"Vit sous terre. Essaimage spectaculaire."},
+  {name:"Lasius brunneus",common:"Fourmi brune des bois",zones:["FR","BE","CH"],climate:"all",months:[4,5],tempMin:20,tempMax:34,humidMin:50,windMax:18,afterRain:false,evening:false,notes:"Essaimage précoce, mai-juin, dans les bois."},
+  {name:"Lasius umbratus",common:"Fourmi parasite ombrée",zones:["FR","BE","CH"],climate:"all",months:[5,6,7,8],tempMin:20,tempMax:35,humidMin:55,windMax:22,afterRain:true,evening:true,notes:"Parasite de Lasius niger. Deux pics d'essaimage."},
+  {name:"Lasius fuliginosus",common:"Fourmi laquée noire",zones:["FR","BE","CH"],climate:"all",months:[5,6,7],tempMin:20,tempMax:34,humidMin:60,windMax:18,afterRain:true,evening:true,notes:"Nid en carton dans les troncs. Odeur de citron."},
+  {name:"Lasius alienus",common:"Fourmi grisâtre",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:22,tempMax:38,humidMin:50,windMax:22,afterRain:true,evening:true,notes:"Très similaire à L. niger, milieux secs."},
+  {name:"Lasius emarginatus",common:"Fourmi bicolore",zones:["FR","CH"],climate:"temp",months:[6,7,8],tempMin:22,tempMax:36,humidMin:50,windMax:20,afterRain:true,evening:true,latMax:48.5,notes:"Tête orangée, abdomen noir. Centre et Sud."},
+  {name:"Lasius mixtus",common:"Fourmi parasite mixte",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:20,tempMax:34,humidMin:55,windMax:20,afterRain:false,evening:true,notes:"Parasite souterrain, difficile à observer."},
+  {name:"Formica rufa",common:"Fourmi rousse des forêts",zones:["FR","BE","CH"],climate:"all",months:[4,5,6],tempMin:18,tempMax:30,humidMin:45,windMax:15,afterRain:false,evening:false,altMax:1500,notes:"Protégée en BE et CH. Dômes de brindilles."},
+  {name:"Formica fusca",common:"Fourmi grise",zones:["FR","BE","CH"],climate:"all",months:[4,5,6,7],tempMin:18,tempMax:32,humidMin:48,windMax:18,afterRain:true,evening:false,notes:"Hôte de nombreuses fourmis parasites."},
+  {name:"Formica cunicularia",common:"Fourmi des prés",zones:["FR","BE","CH"],climate:"all",months:[4,5,6],tempMin:18,tempMax:32,humidMin:45,windMax:18,afterRain:false,evening:false,notes:"Milieux ouverts et prairies."},
+  {name:"Formica pratensis",common:"Fourmi des prairies",zones:["FR","BE","CH"],climate:"all",months:[4,5,6],tempMin:18,tempMax:30,humidMin:45,windMax:15,afterRain:false,evening:false,notes:"Dômes en prairies et lisières. Protégée."},
+  {name:"Formica sanguinea",common:"Fourmi sanguine",zones:["FR","BE","CH"],climate:"all",months:[5,6,7],tempMin:20,tempMax:33,humidMin:48,windMax:18,afterRain:false,evening:false,notes:"Esclavagiste. Pique si dérangée."},
+  {name:"Formica exsecta",common:"Fourmi à encoché",zones:["FR","CH"],climate:"mont",months:[5,6,7],tempMin:16,tempMax:28,humidMin:50,windMax:15,afterRain:false,evening:false,altMin:400,notes:"Montagne et zones humides. Protégée."},
+  {name:"Formica lugubris",common:"Fourmi lugubre",zones:["FR","CH"],climate:"mont",months:[5,6],tempMin:15,tempMax:26,humidMin:50,windMax:12,afterRain:false,evening:false,altMin:600,notes:"Haute montagne, Alpes et Vosges."},
+  {name:"Myrmica rubra",common:"Fourmi rouge (piquante)",zones:["FR","BE","CH"],climate:"all",months:[7,8,9],tempMin:18,tempMax:30,humidMin:60,windMax:20,afterRain:true,evening:true,notes:"⚠️ Aiguillon douloureux. Essaimage automnal."},
+  {name:"Myrmica ruginodis",common:"Fourmi rouge des bois",zones:["FR","BE","CH"],climate:"all",months:[7,8,9],tempMin:17,tempMax:29,humidMin:58,windMax:20,afterRain:true,evening:true,notes:"Milieux frais et humides. ⚠️ Pique."},
+  {name:"Myrmica scabrinodis",common:"Fourmi à nœud rugueux",zones:["FR","BE","CH"],climate:"all",months:[7,8],tempMin:18,tempMax:30,humidMin:55,windMax:20,afterRain:true,evening:false,notes:"Prairies humides. Hôte du papillon Maculinea."},
+  {name:"Myrmica sabuleti",common:"Fourmi des sables",zones:["FR","BE","CH"],climate:"all",months:[7,8],tempMin:20,tempMax:34,humidMin:45,windMax:22,afterRain:false,evening:false,notes:"Milieux secs et sableux."},
+  {name:"Myrmica specioides",common:"Fourmi rouge méridionale",zones:["FR","CH"],climate:"med",months:[7,8,9],tempMin:22,tempMax:36,humidMin:45,windMax:22,afterRain:false,evening:false,latMax:44.5,notes:"Sud de la France, zones calcaires."},
+  {name:"Myrmica lobicornis",common:"Fourmi montagnarde",zones:["FR","CH"],climate:"mont",months:[7,8],tempMin:14,tempMax:26,humidMin:55,windMax:15,afterRain:true,evening:false,altMin:500,notes:"Alpes et Pyrénées, en altitude."},
+  {name:"Camponotus ligniperdus",common:"Fourmi charpentière sombre",zones:["FR","BE","CH"],climate:"all",months:[4,5,6],tempMin:17,tempMax:30,humidMin:50,windMax:15,afterRain:false,evening:true,notes:"Grande fourmi noire. Essaimage nocturne."},
+  {name:"Camponotus vagus",common:"Fourmi vagabonde noire",zones:["FR","BE","CH"],climate:"all",months:[4,5,6],tempMin:18,tempMax:32,humidMin:45,windMax:18,afterRain:false,evening:true,notes:"Sort aux premiers beaux jours."},
+  {name:"Camponotus herculeanus",common:"Fourmi Hercule",zones:["FR","CH"],climate:"mont",months:[4,5,6],tempMin:14,tempMax:26,humidMin:48,windMax:14,afterRain:false,evening:true,altMin:400,notes:"Très grande. Montagnes et forêts de conifères."},
+  {name:"Camponotus aethiops",common:"Fourmi charpentière méridionale",zones:["FR"],climate:"med",months:[4,5,6],tempMin:20,tempMax:34,humidMin:40,windMax:18,afterRain:false,evening:true,latMax:44.5,notes:"Sud de la France. Garrigue et zones sèches."},
+  {name:"Camponotus lateralis",common:"Fourmi latérale",zones:["FR","CH"],climate:"med",months:[4,5,6],tempMin:18,tempMax:32,humidMin:42,windMax:18,afterRain:false,evening:true,latMax:45.5,notes:"Espèce bicolore, régions méditerranéennes."},
+  {name:"Tetramorium caespitum",common:"Fourmi des trottoirs",zones:["FR","BE","CH"],climate:"all",months:[5,6,7,8],tempMin:23,tempMax:38,humidMin:55,windMax:22,afterRain:true,evening:false,notes:"Très commune sur pavés et béton."},
+  {name:"Tetramorium impurum",common:"Fourmi des jardins",zones:["FR","BE","CH"],climate:"all",months:[5,6,7,8],tempMin:22,tempMax:36,humidMin:52,windMax:22,afterRain:true,evening:false,notes:"Très similaire à T. caespitum."},
+  {name:"Solenopsis fugax",common:"Fourmi voleuse",zones:["FR","BE","CH"],climate:"all",months:[8,9,10],tempMin:17,tempMax:28,humidMin:50,windMax:20,afterRain:false,evening:false,notes:"Très petite. Essaimage automnal, pic mi-octobre."},
+  {name:"Ponera coarctata",common:"Fourmi de Ponère",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:18,tempMax:30,humidMin:55,windMax:15,afterRain:true,evening:true,latMax:49.5,notes:"Espèce discrète des sols argileux."},
+  {name:"Tapinoma erraticum",common:"Fourmi errante",zones:["FR","BE","CH"],climate:"all",months:[5,6,7],tempMin:21,tempMax:36,humidMin:44,windMax:20,afterRain:false,evening:false,notes:"Pelouses sèches et milieux chauds."},
+  {name:"Tapinoma nigerrimum",common:"Fourmi odorante noire",zones:["FR"],climate:"med",months:[4,5,6,7],tempMin:22,tempMax:38,humidMin:42,windMax:22,afterRain:false,evening:false,latMax:44.0,notes:"Grande colonie. Côte méditerranéenne."},
+  {name:"Messor barbarus",common:"Fourmi moissonneuse",zones:["FR"],climate:"med",months:[7,8,9],tempMin:25,tempMax:42,humidMin:40,windMax:22,afterRain:true,evening:false,latMax:44.5,notes:"Récolte des graines. Sud France."},
+  {name:"Messor structor",common:"Fourmi moissonneuse brune",zones:["FR","CH"],climate:"med",months:[3,4,5],tempMin:18,tempMax:32,humidMin:42,windMax:20,afterRain:false,evening:false,latMax:45.0,notes:"Essaimage printanier précoce. Sud."},
+  {name:"Crematogaster scutellaris",common:"Fourmi acrobate méridionale",zones:["FR","CH"],climate:"med",months:[5,6,7,8],tempMin:22,tempMax:38,humidMin:44,windMax:20,afterRain:false,evening:false,latMax:45.5,notes:"Abdomen en cœur relevé. Arbres et murs."},
+  {name:"Crematogaster sordidula",common:"Fourmi acrobate",zones:["FR","BE","CH"],climate:"temp",months:[6,7,8],tempMin:20,tempMax:34,humidMin:48,windMax:20,afterRain:false,evening:false,latMax:50.5,notes:"Sous les pierres et dans les bois."},
+  {name:"Aphaenogaster subterranea",common:"Fourmi souterraine",zones:["FR","BE","CH"],climate:"all",months:[5,6,7],tempMin:18,tempMax:32,humidMin:52,windMax:18,afterRain:true,evening:true,notes:"Forêts et sols humides."},
+  {name:"Temnothorax nylanderi",common:"Fourmi de Nylander",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:18,tempMax:32,humidMin:48,windMax:18,afterRain:false,evening:false,notes:"Minuscule, nid dans les glands."},
+  {name:"Polyergus rufescens",common:"Fourmi amazone",zones:["FR","CH"],climate:"temp",months:[6,7,8],tempMin:22,tempMax:36,humidMin:48,windMax:18,afterRain:false,evening:false,latMax:48.0,notes:"Esclavagiste obligatoire de Formica fusca."},
+  {name:"Dolichoderus quadripunctatus",common:"Fourmi à 4 points",zones:["FR","BE","CH"],climate:"temp",months:[5,6,7],tempMin:20,tempMax:34,humidMin:48,windMax:18,afterRain:false,evening:false,latMax:49.5,notes:"4 taches jaunes sur l'abdomen."},
+  {name:"Cataglyphis cursor",common:"Fourmi thermophile",zones:["FR"],climate:"med",months:[4,5,6,7],tempMin:25,tempMax:45,humidMin:35,windMax:25,afterRain:false,evening:false,latMax:44.5,notes:"Court très vite par forte chaleur. Sud France."},
+  {name:"Prenolepis nitens",common:"Fourmi d'hiver",zones:["FR","CH"],climate:"temp",months:[2,3,4],tempMin:5,tempMax:18,humidMin:55,windMax:15,afterRain:false,evening:false,latMax:47.5,altMin:100,altMax:800,notes:"Essaimage hivernal unique !"},
+  {name:"Hypoponera punctatissima",common:"Fourmi ponctuelle",zones:["FR","BE","CH"],climate:"all",months:[6,7,8],tempMin:18,tempMax:32,humidMin:60,windMax:15,afterRain:true,evening:true,notes:"Très discrète, litière et bois en décomposition."},
+  {name:"Linepithema humile",common:"Fourmi d'Argentine",zones:["FR"],climate:"med",months:[4,5,6,7,8],tempMin:20,tempMax:36,humidMin:50,windMax:20,afterRain:false,evening:false,latMax:44.5,notes:"⚠️ Espèce invasive majeure. Côte méditerranéenne."},
+  {name:"Wasmannia auropunctata",common:"Petite fourmi de feu",zones:["FR"],climate:"med",months:[5,6,7,8],tempMin:24,tempMax:40,humidMin:55,windMax:18,afterRain:false,evening:false,latMax:43.5,notes:"⚠️ Invasive et douloureuse. Corse et littoral PACA."},
+];
+const MONTHS=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+// ═══════════════════════════════════════════════════════
+// FILTRAGE ESPÈCES
+// ═══════════════════════════════════════════════════════
+function getClimateFromGPS(lat,lon,alt){
+  if(alt>700)return'mont';
+  if(lat<44.5&&lon>2.0)return'med';
+  if(lat<43.1&&lon>8.5)return'med';
+  if(lat<46.5&&lon>8.5&&lon<9.5)return'med';
+  return'temp';
+}
+function getCountryFromGPS(lat,lon){
+  if(lat>=49.5&&lat<=51.5&&lon>=2.5&&lon<=6.4)return'BE';
+  if(lat>=45.8&&lat<=47.8&&lon>=6.0&&lon<=10.5)return'CH';
+  return'FR';
+}
+function speciesInRegion(sp,lat,lon,alt,country){
+  if(!sp.zones.includes(country))return false;
+  const climate=getClimateFromGPS(lat,lon,alt);
+  if(sp.climate==='all')return true;
+  if(sp.climate==='med'&&climate!=='med')return false;
+  if(sp.climate==='mont'&&climate==='med')return false;
+  if(sp.latMax&&lat>sp.latMax)return false;
+  if(sp.latMin&&lat<sp.latMin)return false;
+  if(sp.altMin&&alt<sp.altMin)return false;
+  if(sp.altMax&&alt>sp.altMax)return false;
+  return true;
+}
+function evaluate(sp,w){
+  const c={
+    season:sp.months.includes(w.month),
+    temp:w.temp>=sp.tempMin&&w.temp<=sp.tempMax,
+    humidity:w.humidity>=sp.humidMin,
+    wind:w.wind<=sp.windMax,
+    rain:!sp.afterRain||w.precip>0||(w.code>=51&&w.code<=67),
+    evening:!sp.evening||(w.hour>=15&&w.hour<=22),
+    noStorm:w.code<80||w.code>99
+  };
+  // Hors saison si le mois n'est pas bon — toujours prioritaire
+  if(!c.season) return{c,status:'off'};
+  // Prêt si TOUS les critères météo sont verts
+  const allOk=c.temp&&c.humidity&&c.wind&&c.rain&&c.evening&&c.noStorm;
+  if(allOk) return{c,status:'ready'};
+  // Partiel si température et vent corrects mais autres conditions manquantes
+  if(c.temp&&c.wind&&c.noStorm) return{c,status:'partial'};
+  // Hors saison si temp ou vent trop défavorables
+  return{c,status:'off'};
+}
+
+// ═══════════════════════════════════════════════════════
+// MÉTÉO
+// ═══════════════════════════════════════════════════════
+async function loadWeather(){
+  if(!currentRegion){showLoader(false);return;}
+  document.getElementById('error-box').style.display='none';
+  try{
+    const lat=currentRegion.lat,lon=currentRegion.lon;
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation&timezone=auto&forecast_days=1`);
+    const d=await r.json();
+    if(!d.current)throw new Error('Réponse météo invalide');
+    const c=d.current;
+    const alt=d.elevation||0;
+    const country=currentRegion.country||getCountryFromGPS(lat,lon);
+    currentCountry=country;
+    currentWeather={
+      temp:Math.round(c.temperature_2m*10)/10,
+      humidity:c.relative_humidity_2m,
+      wind:Math.round(c.wind_speed_10m),
+      code:c.weather_code,precip:c.precipitation,
+      hour:new Date().getHours(),month:new Date().getMonth(),
+      lat,lon,alt,country
+    };
+    renderUI();
+  }catch(e){
+    const el=document.getElementById('error-box');
+    el.style.display='block';el.textContent='⚠️ Erreur météo : '+e.message;
+  }
+  showLoader(false);
+}
+
+// ═══════════════════════════════════════════════════════
+// ALERTES MULTI-ZONES
+// ═══════════════════════════════════════════════════════
+async function checkAllZones(){
+  if(!CFG.token||!CFG.chatId||CFG.zones.length===0)return;
+  for(const z of CFG.zones){
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${z.lat}&longitude=${z.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,precipitation&timezone=auto&forecast_days=1`);
+      const d=await r.json();
+      if(!d.current)continue;
+      const c=d.current;
+      const w={
+        temp:Math.round(c.temperature_2m*10)/10,
+        humidity:c.relative_humidity_2m,
+        wind:Math.round(c.wind_speed_10m),
+        code:c.weather_code,precip:c.precipitation,
+        hour:new Date().getHours(),month:new Date().getMonth(),
+        lat:z.lat,lon:z.lon,alt:d.elevation||0,
+        country:getCountryFromGPS(z.lat,z.lon)
+      };
+      const ready=SPECIES
+        .filter(sp=>speciesInRegion(sp,w.lat,w.lon,w.alt,w.country))
+        .filter(sp=>!CFG.selectedSpecies||CFG.selectedSpecies.length===0||CFG.selectedSpecies.includes(sp.name))
+        .filter(sp=>evaluate(sp,w).status==='ready')
+        .map(sp=>sp.name);
+      const key='alerted_'+z.name;
+      const prevAlerted=JSON.parse(sessionStorage.getItem(key)||'[]');
+      const newSp=ready.filter(s=>!prevAlerted.includes(s));
+      if(newSp.length>0){
+        await tg(`🐜 <b>Alerte Essaimage — ${z.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
+        await logAlerte(z.name, w.country, newSp, w);
+        await window.notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+z.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
+        sessionStorage.setItem(key,JSON.stringify(ready));
+      }
+    }catch(e){console.error('Zone check error:',z.name,e);}
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER UI
+// ═══════════════════════════════════════════════════════
+function getWeatherDesc(c){
+  if(c===0)return'Ciel dégagé ☀️';if(c<=3)return'Partiellement nuageux 🌤️';
+  if(c<=49)return'Brouillard 🌫️';if(c<=67)return'Pluie 🌧️';
+  if(c<=77)return'Neige ❄️';if(c<=82)return'Averses 🌦️';
+  if(c<=99)return'Orage ⛈️';return'Nuageux ☁️';
+}
+
+async function renderUI(){
+  if(!currentWeather||!currentRegion)return;
+  const w=currentWeather;
+
+  document.getElementById('weather-badge').classList.add('visible');
+  document.getElementById('temp-display').textContent=w.temp+'°';
+  document.getElementById('weather-desc').textContent=getWeatherDesc(w.code);
+  document.getElementById('weather-time').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('last-update').textContent='Màj : '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('strip-temp').textContent=w.temp+'°C';
+  document.getElementById('strip-hum').textContent=w.humidity+'%';
+  document.getElementById('strip-wind').textContent=w.wind+' km/h';
+  document.getElementById('strip-time').textContent=w.hour+'h';
+  document.getElementById('strip-sky').textContent=getWeatherDesc(w.code).split(' ')[0];
+  document.getElementById('dot-temp').className='dot '+(w.temp>=24?'ok':'warn');
+  document.getElementById('dot-hum').className='dot '+(w.humidity>=55?'ok':'warn');
+  document.getElementById('dot-wind').className='dot '+(w.wind<=20?'ok':'warn');
+  document.getElementById('dot-time').className='dot '+(w.hour>=15&&w.hour<=22?'ok':'');
+  document.getElementById('dot-storm').className='dot '+(w.code<80?'ok':'warn');
+
+  const climate=getClimateFromGPS(w.lat,w.lon,w.alt);
+  document.getElementById('strip-climate-icon').textContent=climate==='med'?'🌞':climate==='mont'?'⛰️':'🌿';
+  document.getElementById('strip-climate').textContent=climate==='med'?'Méditerranéen':climate==='mont'?'Montagnard ('+Math.round(w.alt)+'m)':'Tempéré';
+
+  const regional=SPECIES
+    .filter(sp=>speciesInRegion(sp,w.lat,w.lon,w.alt,w.country))
+    .filter(sp=>!CFG.selectedSpecies||CFG.selectedSpecies.length===0||CFG.selectedSpecies.includes(sp.name));
+  document.getElementById('count-badge').textContent=regional.length+' espèces';
+
+  const grid=document.getElementById('species-grid');
+  grid.innerHTML='';
+  const ready=[];
+
+  const sorted=regional.map(sp=>({sp,ev:evaluate(sp,w)}))
+    .sort((a,b)=>({ready:0,partial:1,off:2}[a.ev.status]-{ready:0,partial:1,off:2}[b.ev.status]));
+
+  sorted.forEach(({sp,ev})=>{
+    if(ev.status==='ready')ready.push(sp.name);
+    const bc=ev.status==='ready'?'badge-ready':ev.status==='partial'?'badge-partial':'badge-off';
+    const bt=ev.status==='ready'?'✦ Prêt':ev.status==='partial'?'◐ Partiel':'○ Hors saison';
+    const ci=ok=>`<div class="cond-check ${ok?'check-ok':'check-no'}">${ok?'✓':'✗'}</div>`;
+    const bar=MONTHS.map((m,i)=>{
+      const a=sp.months.includes(i),c=i===w.month;
+      return`<div class="month-seg ${a&&c?'current-active':a?'active':''}" title="${m}"></div>`;
+    }).join('');
+    const zoneTags=sp.zones.map(z=>`<span class="zone-tag ${z.toLowerCase()}">${z}</span>`).join('');
+    const card=document.createElement('div');
+    card.className='species-card '+ev.status+(currentFilter!=='all'&&ev.status!==currentFilter?' hidden-card':'');
+    card.innerHTML=`
+<div class="card-top"><div><div class="species-name">${sp.name}</div><div class="common-name">${sp.common}</div><div class="zone-tags">${zoneTags}</div></div><span class="status-badge ${bc}">${bt}</span></div>
+<div class="conditions-list">
+<div class="cond-row"><span class="cond-icon">🌡️</span><span class="cond-label">Température</span><span class="cond-value">${sp.tempMin}–${sp.tempMax}°C</span>${ci(ev.c.temp)}</div>
+<div class="cond-row"><span class="cond-icon">💧</span><span class="cond-label">Humidité min.</span><span class="cond-value">${sp.humidMin}%</span>${ci(ev.c.humidity)}</div>
+<div class="cond-row"><span class="cond-icon">💨</span><span class="cond-label">Vent max.</span><span class="cond-value">${sp.windMax} km/h</span>${ci(ev.c.wind)}</div>
+<div class="cond-row"><span class="cond-icon">📅</span><span class="cond-label">Période</span><span class="cond-value">${sp.months.map(i=>MONTHS[i]).join(', ')}</span>${ci(ev.c.season)}</div>
+${sp.evening?`<div class="cond-row"><span class="cond-icon">🌆</span><span class="cond-label">Heure (15h–22h)</span><span class="cond-value">${w.hour}h</span>${ci(ev.c.evening)}</div>`:''}
+</div>
+<div class="period-row"><span style="white-space:nowrap;margin-right:5px">Jan</span><div class="period-bar">${bar}</div><span style="white-space:nowrap;margin-left:5px">Déc</span></div>
+<div class="card-notes">${sp.notes}</div>`;
+    grid.appendChild(card);
+  });
+
+  const banner=document.getElementById('alert-banner');
+  if(ready.length>0){
+    banner.classList.add('visible');
+    document.getElementById('alert-text').textContent=`🐜 ${ready.length} espèce${ready.length>1?'s':''} prête${ready.length>1?'s':''} : ${ready.join(', ')}`;
+    const prevKey='alerted_'+currentRegion.name;
+    const prev=JSON.parse(sessionStorage.getItem(prevKey)||'[]');
+    const newSp=ready.filter(s=>!prev.includes(s));
+    if(newSp.length>0&&CFG.token&&CFG.chatId){
+      await tg(`🐜 <b>Alerte Essaimage — ${currentRegion.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
+      await logAlerte(currentRegion.name, w.country, newSp, w);
+      await window.notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+currentRegion.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
+      sessionStorage.setItem(prevKey,JSON.stringify(ready));
+      showToast('🐜 Alerte Telegram envoyée !');
+    }
+  }else{banner.classList.remove('visible');}
+}
+
+// ═══════════════════════════════════════════════════════
+// TELEGRAM
+// ═══════════════════════════════════════════════════════
+async function tg(text){
+  if(!CFG.token||!CFG.chatId)return;
+  try{await fetch('https://api.telegram.org/bot'+CFG.token+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CFG.chatId,text,parse_mode:'HTML'})});}
+  catch(e){console.error(e);}
+}
+
+// notifAdmin est défini dans le module Firebase (window.notifAdmin)
+async function sendTestTelegram(){
+  if(!CFG.token||!CFG.chatId){openSetup();return;}
+  showToast('📨 Envoi en cours…');
+  const zones=CFG.zones.length>0?'\n\nZones surveillées :\n'+CFG.zones.map(z=>'📍 '+z.name).join('\n'):'';
+  await tg(`🐜 <b>Alerte Essaimage — Test</b>${CFG.name?'\nUtilisateur : '+CFG.name:''}\n\nTon bot fonctionne !${zones}\n\nTu recevras une alerte dès que les conditions seront réunies. 🍀`);
+  showToast('✅ Message envoyé sur Telegram !');
+}
+
+// ── LOG ALERTE (Firestore + Analytics) ───────────────────────────
+async function logAlerte(zone, pays, especes, meteo){
+  const now=new Date();
+  const logData={
+    date:now.toISOString().split('T')[0],
+    heure:now.toTimeString().slice(0,5),
+    timestamp:now.toISOString(),
+    userId:window._fbUser?window._fbUser.uid:'anonymous',
+    pseudo:CFG.name||'anonyme',
+    zone:zone, pays:pays,
+    especes:especes, nbEspeces:especes.length,
+    temperature:meteo.temp||0, humidite:meteo.humidity||0,
+    vent:meteo.wind||0, heure_locale:meteo.hour||0
+  };
+
+  // 1. Firestore via window._fbAdd exposé depuis le module
+  try{
+    if(window._fbAdd&&window._fbCollection&&window._fbDb){
+      const docRef=await window._fbAdd(window._fbCollection(window._fbDb,'alertes'),logData);
+      console.log('✅ Alerte loggée Firestore, ID:', docRef.id);
+    }else{
+      console.warn('⚠️ Firebase addDoc non disponible:', {
+        fbAdd:!!window._fbAdd, fbCollection:!!window._fbCollection, fbDb:!!window._fbDb
+      });
+    }
+  }catch(e){console.error('❌ Firestore log error:', e.code, e.message);}
+
+  // 2. Firebase Analytics
+  try{
+    if(window._fbLogEvent){
+      window._fbLogEvent('alerte_envoyee', {
+        zone: zone,
+        pays: pays,
+        nb_especes: especes.length,
+        temperature: meteo.temp||0
+      });
+      console.log('✅ Analytics: alerte_envoyee');
+    }else{
+      console.warn('⚠️ Analytics non disponible');
+    }
+  }catch(e){console.error('❌ Analytics error:', e);}
+}
+
+window.testLogAlerte = async function(){
+  console.log('🧪 Test Firestore...');
+  console.log('_fbAdd:', !!window._fbAdd, '_fbCollection:', !!window._fbCollection, '_fbDb:', !!window._fbDb);
+  await logAlerte(
+    currentRegion?currentRegion.name:'TestZone',
+    'FR', ['Lasius niger (TEST)'],
+    currentWeather||{temp:25,humidity:60,wind:10,hour:18}
+  );
+  showToast('🧪 Test envoyé — vérifie la console');
+};
+
+// ═══════════════════════════════════════════════════════
+// CITY SEARCH
+// ═══════════════════════════════════════════════════════
+let citySearchTimeout=null;
+async function onCityInput(){
+  clearTimeout(citySearchTimeout);
+  const q=document.getElementById('city-input').value.trim();
+  if(q.length<2){closeCityResults();return;}
+  citySearchTimeout=setTimeout(()=>searchCity(q),400);
+}
+function onCityKey(e){
+  if(e.key==='Enter'){clearTimeout(citySearchTimeout);searchCity(document.getElementById('city-input').value.trim());}
+  if(e.key==='Escape')closeCityResults();
+}
+async function searchCity(q){
+  q=q||document.getElementById('city-input').value.trim();
+  if(!q||q.length<2)return;
+  try{
+    const r=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=fr&format=json`);
+    const d=await r.json();
+    showCityResults(d.results||[]);
+  }catch(e){showToast('❌ Erreur : '+e.message);}
+}
+function showCityResults(results){
+  const box=document.getElementById('city-results');
+  box.innerHTML='';
+  if(!results.length){box.innerHTML='<div class="city-result-item"><span class="city-result-name" style="color:var(--muted)">Aucun résultat</span></div>';box.classList.add('open');return;}
+  results.forEach(r=>{
+    const item=document.createElement('div');item.className='city-result-item';
+    const detail=[r.admin1,r.country].filter(Boolean).join(', ');
+    item.innerHTML=`<span class="city-result-name">${r.name}</span><span class="city-result-detail">${detail} · ${r.latitude.toFixed(2)}°N</span>`;
+    item.onclick=()=>selectCity(r);
+    box.appendChild(item);
+  });
+  box.classList.add('open');
+}
+function closeCityResults(){document.getElementById('city-results').classList.remove('open');}
+function selectCity(r){
+  document.getElementById('city-input').value=r.name;
+  closeCityResults();
+  const cc=(r.country_code||'').toUpperCase();
+  if(['FR','BE','CH'].includes(cc))setCountryCode(cc);
+  const _can2=document.getElementById('city-active-name');if(_can2)_can2.textContent='📍 '+r.name;
+  const _cab1=document.getElementById('city-active-badge');if(_cab1)_cab1.classList.add('visible');
+  // header-location removed
+  currentRegion={name:r.name,lat:r.latitude,lon:r.longitude};
+  // Effacer le contour de région et afficher le point précis
+  if(regionBoundary){regionBoundary.remove();regionBoundary=null;}
+  updateMapMarker(r.latitude,r.longitude);
+  loadWeather();
+}
+function clearCity(){
+  document.getElementById('city-input').value='';
+  (document.getElementById('city-active-badge')||{}).classList?.remove('visible');
+  currentRegion=null;currentWeather=null;
+  document.getElementById('species-grid').innerHTML='';
+  // header-location removed
+  document.getElementById('weather-badge').classList.remove('visible');
+  if(mainMarker){mainMarker.remove();mainMarker=null;}
+  if(regionBoundary){regionBoundary.remove();regionBoundary=null;}
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+// ── PAGE RETOURS ─────────────────────────────────────────────────
+function openRetours(){document.getElementById('retours-overlay').classList.remove('hidden');}
+function closeRetours(){document.getElementById('retours-overlay').classList.add('hidden');}
+function switchRetourTab(tab,e){
+  document.querySelectorAll('.retour-tab').forEach(b=>b.classList.remove('active','bug-tab'));
+  e.target.classList.add('active');
+  if(tab==='bug')e.target.classList.add('bug-tab');
+  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById('form-'+tab).classList.add('active');
+  document.getElementById('retour-success').style.display='none';
+}
+function resetRetours(){
+  document.getElementById('retour-success').style.display='none';
+  document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+  document.getElementById('form-espece').classList.add('active');
+  document.querySelectorAll('.retour-tab').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.retour-input,.retour-textarea,.retour-select').forEach(el=>el.value='');
+}
+async function submitRetour(type){
+  const now=new Date();
+  let data={type,timestamp:now.toISOString(),date:now.toISOString().split('T')[0],
+    userId:window._fbUser?window._fbUser.uid:'anonymous',pseudo:CFG.name||'anonyme',
+    ville:currentRegion?currentRegion.name:'non renseignee'};
+  let errEl,valid=true,notifText='';
+  if(type==='espece'){
+    errEl=document.getElementById('espece-error');
+    const t=document.getElementById('espece-type').value;
+    const n=document.getElementById('espece-nom').value.trim();
+    const v=document.getElementById('espece-ville').value.trim();
+    if(!t||!n||!v){valid=false;}
+    else{
+      data.sousType=t;data.especeNom=n;data.especeVille=v;
+      data.description=document.getElementById('espece-desc').value.trim();
+      data.source=document.getElementById('espece-source').value.trim();
+      notifText='RETOUR ESPECE\n\nType : '+t+'\nEspece : '+n+'\nVille : '+v+'\nDescription : '+(data.description||'-')+'\nSource : '+(data.source||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='bug'){
+    errEl=document.getElementById('bug-error');
+    const d=document.getElementById('bug-desc').value.trim();
+    if(!d){valid=false;}
+    else{
+      data.description=d;
+      data.etapes=document.getElementById('bug-etapes').value.trim();
+      data.appareil=document.getElementById('bug-appareil').value.trim();
+      data.frequence=document.getElementById('bug-frequence').value;
+      notifText='BUG SIGNALE\n\nDescription : '+d+'\nEtapes : '+(data.etapes||'-')+'\nAppareil : '+(data.appareil||'-')+'\nFrequence : '+(data.frequence||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='fonctionnalite'){
+    errEl=document.getElementById('fonc-error');
+    const d=document.getElementById('fonc-desc').value.trim();
+    if(!d){valid=false;}
+    else{
+      data.description=d;data.pourquoi=document.getElementById('fonc-pourquoi').value.trim();
+      notifText='NOUVELLE IDEE\n\nSuggestion : '+d+'\nPourquoi : '+(data.pourquoi||'-')+'\nUtilisateur : '+data.pseudo;
+    }
+  }else if(type==='autre'){
+    errEl=document.getElementById('autre-error');
+    const m=document.getElementById('autre-message').value.trim();
+    if(!m){valid=false;}
+    else{data.message=m;notifText='MESSAGE LIBRE\n\n'+m+'\n\nUtilisateur : '+data.pseudo;}
+  }
+  if(!valid){errEl.style.display='block';return;}
+  errEl&&(errEl.style.display='none');
+  const btn=document.querySelector('#form-'+type+' .retour-submit');
+  btn.disabled=true;btn.textContent='Envoi...';
+  try{
+    if(window._fbAdd&&window._fbCollection&&window._fbDb){
+      await window._fbAdd(window._fbCollection(window._fbDb,'retours'),data);
+    }
+    // Notif admin Telegram
+    const icons={espece:'🐜',bug:'🐛',fonctionnalite:'💡',autre:'💬'};
+    await window.notifAdmin(icons[type]+' <b>'+notifText.split('\n')[0]+'</b>\n\n'+notifText.split('\n').slice(2).join('\n'));
+    document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
+    document.getElementById('retour-success').style.display='block';
+    if(window._fbLogEvent)window._fbLogEvent('retour_envoye',{type});
+  }catch(e){
+    console.error('Retour error:',e);
+    showToast('Erreur lors de l envoi. Reessaie.');
+    btn.disabled=false;btn.textContent='Envoyer';
+  }
+}
+
+function showLoader(on){
+  const loader=document.getElementById('loader');
+  if(loader)loader.classList.toggle('hidden',!on);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+function setFilter(f,e){
+  currentFilter=f;
+  document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+  if(e)e.target.classList.add('active');
+  document.querySelectorAll('.species-card').forEach(card=>{
+    if(f==='all'){card.classList.remove('hidden-card');return;}
+    card.classList.toggle('hidden-card',!card.classList.contains(f));
+  });
+}
+async function refreshAll(){
+  await loadWeather();
+  await checkAllZones();
+}
+
+// ═══════════════════════════════════════════════════════
+// AUTH FIREBASE
+// ═══════════════════════════════════════════════════════
+function switchAuthTab(tab){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('auth-login-form').style.display=tab==='login'?'block':'none';
+  document.getElementById('auth-register-form').style.display=tab==='register'?'block':'none';
+}
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pwd=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  const btn=document.getElementById('login-btn');
+  if(!email||!pwd){errEl.textContent='Email et mot de passe requis.';errEl.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Connexion…';errEl.style.display='none';
+  try{
+    await window._fbFns.signInWithEmailAndPassword(window._fbAuth,email,pwd);
+    // onAuthStateChanged prend le relais
+  }catch(e){
+    errEl.textContent=authErrorMsg(e.code);
+    errEl.style.display='block';
+    btn.disabled=false;btn.textContent='Se connecter';
+  }
+}
+
+async function doRegister(){
+  const pseudo  = document.getElementById('reg-pseudo').value.trim();
+  const prenom  = document.getElementById('reg-prenom').value.trim();
+  const nom     = document.getElementById('reg-nom').value.trim();
+  const email   = document.getElementById('reg-email').value.trim();
+  const pwd     = document.getElementById('reg-password').value;
+  const source  = document.getElementById('reg-source').value;
+  const consent = document.getElementById('reg-consent').checked;
+  const errEl   = document.getElementById('reg-error');
+  const btn     = document.getElementById('reg-btn');
+
+  if(!pseudo||!email||!pwd){errEl.textContent='Pseudo, email et mot de passe sont obligatoires.';errEl.style.display='block';return;}
+  if(pwd.length<6){errEl.textContent='Le mot de passe doit faire au moins 6 caractères.';errEl.style.display='block';return;}
+  if(!consent){errEl.textContent='Vous devez accepter la politique de confidentialité pour créer un compte.';errEl.style.display='block';return;}
+
+  btn.disabled=true;btn.textContent='Création…';errEl.style.display='none';
+  try{
+    const cred=await window._fbFns.createUserWithEmailAndPassword(window._fbAuth,email,pwd);
+    await window._fbFns.updateProfile(cred.user,{displayName:pseudo});
+    // Sauvegarder les infos dans Firestore
+    const {doc,setDoc}=window._fbFns;
+    await setDoc(doc(window._fbDb,'users',cred.user.uid),{
+      token:'', chatId:'', name:pseudo,
+      prenom:prenom||'', nom:nom||'',
+      source:source||'',
+      consentDate:new Date().toISOString(),
+      createdAt:new Date().toISOString(),
+      zones:[], selectedSpecies:[]
+    });
+    CFG.name=pseudo;
+    await window.notifAdmin('👤 <b>NOUVEAU COMPTE CREE</b>\n\n🐜 Pseudo : <b>'+pseudo+'</b>\n📋 Prenom : '+(prenom||'non renseigne')+'\n📋 Nom : '+(nom||'non renseigne')+'\n📧 Email : '+email+'\n🔍 Source : '+(source||'non renseignee')+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR'));
+    // onAuthStateChanged prend le relais
+  }catch(e){
+    errEl.textContent=authErrorMsg(e.code);
+    errEl.style.display='block';
+    btn.disabled=false;btn.textContent='Créer mon compte';
+  }
+}
+
+async function doLogout(){
+  if(!confirm('Se déconnecter ?'))return;
+  await window._fbFns.signOut(window._fbAuth);
+  CFG={token:'',chatId:'',name:'',zones:[],selectedSpecies:[]};
+  document.getElementById('auth-overlay').classList.remove('hidden');
+  document.getElementById('main').classList.remove('visible');
+  document.getElementById('user-badge').style.display='none';
+}
+
+// ── LEGAL ────────────────────────────────────────────────────────
+function showLegal(page){
+  document.getElementById('legal-overlay').classList.remove('hidden');
+  ['privacy','terms','mentions'].forEach(p=>{
+    document.getElementById('legal-'+p).style.display=p===page?'block':'none';
+  });
+  return false;
+}
+function closeLegal(){
+  document.getElementById('legal-overlay').classList.add('hidden');
+}
+
+function authErrorMsg(code){
+  const msgs={
+    'auth/user-not-found':'Aucun compte avec cet email.',
+    'auth/wrong-password':'Mot de passe incorrect.',
+    'auth/invalid-email':'Adresse email invalide.',
+    'auth/email-already-in-use':'Cet email est déjà utilisé.',
+    'auth/weak-password':'Mot de passe trop faible (6 caractères min.).',
+    'auth/too-many-requests':'Trop de tentatives, réessaie plus tard.',
+    'auth/invalid-credential':'Email ou mot de passe incorrect.',
+  };
+  return msgs[code]||'Erreur : '+code;
+}
+
+// Appelé par Firebase quand l'état auth est connu
+// ── WELCOME MODAL ──────────────────────────────────────────────
+function showWelcome(){
+  document.getElementById('welcome-overlay').classList.remove('hidden');
+}
+function closeWelcome(){
+  document.getElementById('welcome-overlay').classList.add('hidden');
+  localStorage.setItem('essaimage_welcomed','1');
+}
+
+window.onFirebaseReady = function(user){
+  if(user){
+    document.getElementById('auth-overlay').classList.add('hidden');
+    // ── CORRECTION SYNC : copier window.CFG vers CFG local ──
+    const isNewUser = !window.CFG || (!window.CFG.token && !window.CFG.chatId && (!window.CFG.zones || window.CFG.zones.length===0));
+    if(window.CFG){
+      CFG.token          = window.CFG.token          || '';
+      CFG.chatId         = window.CFG.chatId         || '';
+      CFG.name           = window.CFG.name           || '';
+      CFG.zones          = window.CFG.zones          || [];
+      CFG.selectedSpecies= window.CFG.selectedSpecies|| [];
+    }
+    const displayName=user.displayName||CFG.name||user.email.split('@')[0];
+    // Notif admin connexion (uniquement 1 fois par session)
+    if(!sessionStorage.getItem('admin_notif_connexion')){
+      notifAdmin('🟢 <b>CONNEXION</b>\n\n👤 Utilisateur : <b>'+displayName+'</b>\n📧 Email : '+user.email+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+      sessionStorage.setItem('admin_notif_connexion','1');
+    }
+    // Tracker la connexion dans Analytics
+    if(window._fbLogEvent){
+      window._fbLogEvent('connexion', {
+        userId: user.uid,
+        pseudo: displayName
+      });
+    }
+    initApp();
+    // Afficher la welcome modal à la première connexion
+    if(isNewUser && !localStorage.getItem('essaimage_welcomed')){
+      setTimeout(showWelcome, 800);
+    }
+  }else{
+    document.getElementById('auth-overlay').classList.remove('hidden');
+    document.getElementById('loader').classList.add('hidden');
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+// INIT APP (après auth)
+// ═══════════════════════════════════════════════════════
+function initApp(){
+  loadConfig();
+  showLoader(true);
+  populateRegions();
+  updateNotifStatus();
+  renderZonesStrip();
+  setTimeout(()=>{
+    initMap();
+    renderMapZones();
+    showLoader(false);
+  },100);
+  setInterval(async()=>{
+    if(currentRegion)await loadWeather();
+    await checkAllZones();
+  },30*60*1000);
+}
+
+// Fallback si Firebase tarde (ne bloque pas l'UI indéfiniment)
+setTimeout(()=>{
+  if(!window._fbUser&&!window._fbFns){
+    console.warn('Firebase timeout — mode local');
+    try{const s=localStorage.getItem('essaimage_cfg2');if(s)Object.assign(CFG,JSON.parse(s));}catch(e){}
+    document.getElementById('auth-overlay').classList.add('hidden');
+    initApp();
+  }
+},5000);
+
+
+// ═══════════════════════════════════════════
+// NAVIGATION MULTI-PAGES
+// ═══════════════════════════════════════════
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link, .mobile-nav-link').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === page);
+  });
+  const el = document.getElementById('page-' + page);
+  if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+
+  // Initialiser la page espèces si besoin
+  if (page === 'especes') renderEspecesPage();
+  // Initialiser la checklist espèces si besoin
+  if (page === 'compte') { renderSpeciesChecklist(); renderSetupZones(); }
+}
+
+// Navbar scroll effect
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 20);
+});
+
+function toggleMobileNav() {
+  document.getElementById('mobile-nav').classList.toggle('open');
+}
+function closeMobileNav() {
+  document.getElementById('mobile-nav').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.mobile-nav') && !e.target.closest('#hamburger-btn')) {
+    closeMobileNav();
+  }
+});
+
+// ═══════════════════════════════════════════
+// PAGE ESPECES — GRILLE + MODAL
+// ═══════════════════════════════════════════
+const MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+
+function renderEspecesPage() {
+  const grid = document.getElementById('especes-grid');
+  if (grid.children.length > 0) return; // Déjà rendu
+  const sorted = [...SPECIES].sort((a,b) => a.name.localeCompare(b.name, 'fr'));
+  sorted.forEach(sp => {
+    const card = document.createElement('div');
+    card.className = 'espece-card';
+    card.dataset.genre = sp.name.split(' ')[0];
+    card.dataset.name = sp.name.toLowerCase();
+    card.dataset.common = sp.common.toLowerCase();
+    const climateLabel = sp.climate === 'med' ? 'Méditerranéen' : sp.climate === 'mont' ? 'Montagnard' : sp.climate === 'all' ? 'Toutes zones' : 'Tempéré';
+    const climateClass = sp.climate === 'med' ? 'climate-med' : sp.climate === 'mont' ? 'climate-mont' : sp.climate === 'all' ? 'climate-all' : 'climate-temp';
+    const months = sp.months.map(m => MONTHS_FR[m]).join(', ');
+    const zones = sp.zones.map(z => `<span class="zone-tag ${z.toLowerCase()}">${z}</span>`).join('');
+    card.innerHTML = `
+      <div class="espece-card-name">${sp.name}</div>
+      <div class="espece-card-common">${sp.common}</div>
+      <div class="espece-card-tags">
+        ${zones}
+        <span class="espece-tag ${climateClass}">${climateLabel}</span>
+      </div>
+      <div class="espece-card-period">Essaimage : <span>${months}</span></div>`;
+    card.onclick = () => openEspeceModal(sp);
+    grid.appendChild(card);
+  });
+  updateEspecesCount();
+}
+
+function filterEspecesPage() {
+  const q = document.getElementById('especes-search').value.toLowerCase();
+  const genre = document.getElementById('especes-genre-filter').value;
+  let visible = 0;
+  document.querySelectorAll('.espece-card').forEach(card => {
+    const matchQ = !q || card.dataset.name.includes(q) || card.dataset.common.includes(q);
+    const matchG = !genre || (genre === 'Autres' ? !['Lasius','Formica','Myrmica','Camponotus','Tetramorium','Messor','Crematogaster'].includes(card.dataset.genre) : card.dataset.genre === genre);
+    const show = matchQ && matchG;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('especes-count').innerHTML = `<span>${visible}</span> espèce${visible > 1 ? 's' : ''}`;
+}
+
+function updateEspecesCount() {
+  document.getElementById('especes-count').innerHTML = `<span>${SPECIES.length}</span> espèces`;
+}
+
+function openEspeceModal(sp) {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const bar = MONTHS_FR.map((m, i) => {
+    const isActive = sp.months.includes(i);
+    const isCurrent = i === currentMonth;
+    const cls = isCurrent && isActive ? 'current' : isActive ? 'active' : '';
+    return `<div class="modal-month ${cls}" title="${m}">${m}</div>`;
+  }).join('');
+
+  const zones = sp.zones.map(z => `<span class="zone-tag ${z.toLowerCase()}">${z}</span>`).join(' ');
+
+  document.getElementById('espece-modal-content').innerHTML = `
+    <div class="modal-name">${sp.name}</div>
+    <div class="modal-common">${sp.common}</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px">${zones}</div>
+    <div class="modal-section">
+      <div class="modal-section-title">Conditions d'essaimage</div>
+      <div class="modal-grid">
+        <div class="modal-stat"><div class="modal-stat-label">Température</div><div class="modal-stat-value">${sp.tempMin}° — ${sp.tempMax}°C</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Humidité min.</div><div class="modal-stat-value">${sp.humidMin}%</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Vent max.</div><div class="modal-stat-value">${sp.windMax} km/h</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Zone climatique</div><div class="modal-stat-value">${sp.climate === 'med' ? 'Méditerranéen' : sp.climate === 'mont' ? 'Montagnard' : 'Toutes zones'}</div></div>
+        ${sp.latMax ? `<div class="modal-stat"><div class="modal-stat-label">Latitude max.</div><div class="modal-stat-value">${sp.latMax}°N</div></div>` : ''}
+        ${sp.altMin ? `<div class="modal-stat"><div class="modal-stat-label">Altitude min.</div><div class="modal-stat-value">${sp.altMin}m</div></div>` : ''}
+        <div class="modal-stat"><div class="modal-stat-label">Après pluie</div><div class="modal-stat-value">${sp.afterRain ? 'Favorisé' : 'Indifférent'}</div></div>
+        <div class="modal-stat"><div class="modal-stat-label">Heure</div><div class="modal-stat-value">${sp.evening ? '15h — 22h' : 'Toute la journée'}</div></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Période d'essaimage</div>
+      <div class="modal-period-bar">${bar}</div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Notes</div>
+      <div class="modal-notes">${sp.notes}</div>
+    </div>`;
+  document.getElementById('espece-modal').classList.add('open');
+}
+
+function closeEspeceModal() {
+  document.getElementById('espece-modal').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (e.target === document.getElementById('espece-modal')) closeEspeceModal();
+});
+
+// ═══════════════════════════════════════════
+// MISE À JOUR UI APRÈS AUTH
+// ═══════════════════════════════════════════
+const _origOnFirebaseReady = window.onFirebaseReady;
+window.onFirebaseReady = function(user) {
+  if (user) {
+    const displayName = user.displayName || CFG.name || user.email.split('@')[0];
+    document.getElementById('nav-user-name').textContent = '👤 ' + displayName;
+    document.getElementById('nav-user').classList.add('visible');
+    document.getElementById('compte-user-name').textContent = displayName;
+  }
+  _origOnFirebaseReady(user);
+};
+</script>
+</body>
+</html>
