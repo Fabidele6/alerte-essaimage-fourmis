@@ -92,6 +92,27 @@ window.testFirestoreLog = async function(){
     alert('❌ Erreur: ' + e.code + ' — ' + e.message);
   }
 };
+
+// ── Notifications admin Telegram — exposées depuis le module ──
+const ADMIN_TG_TOKEN = "8687019817:AAHweHAbO6vQDv3Wi4v2G8u-3Oxs5NNYWdM";
+const ADMIN_TG_CHAT  = "7567035939";
+window.notifAdmin = async function(text){
+  try{
+    const r = await fetch('https://api.telegram.org/bot'+ADMIN_TG_TOKEN+'/sendMessage',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:ADMIN_TG_CHAT, text, parse_mode:'HTML'})
+    });
+    const d = await r.json();
+    if(!d.ok) console.error('notifAdmin Telegram error:', d.description);
+    else console.log('✅ notifAdmin envoyé');
+  }catch(e){console.error('notifAdmin fetch error:',e);}
+};
+
+// Test notifAdmin depuis la console
+window.testNotifAdmin = function(){
+  window.notifAdmin('🧪 <b>TEST ADMIN</b>\n\nLes notifications admin fonctionnent !');
+};
 </script>
 <style>
 :root{--bg:#0d0f0a;--surface:#141710;--border:#2a2e1f;--accent:#a8c44a;--accent2:#e8b84b;--accent3:#c45a2a;--text:#d4d9c4;--muted:#6b7257;--warn:#e8b84b;--off:#3a3f2e}
@@ -1521,7 +1542,7 @@ async function checkAllZones(){
       if(newSp.length>0){
         await tg(`🐜 <b>Alerte Essaimage — ${z.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
         await logAlerte(z.name, w.country, newSp, w);
-        await notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+z.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
+        await window.notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+z.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
         sessionStorage.setItem(key,JSON.stringify(ready));
       }
     }catch(e){console.error('Zone check error:',z.name,e);}
@@ -1610,7 +1631,7 @@ ${sp.evening?`<div class="cond-row"><span class="cond-icon">🌆</span><span cla
     if(newSp.length>0&&CFG.token&&CFG.chatId){
       await tg(`🐜 <b>Alerte Essaimage — ${currentRegion.name}</b>\n\nConditions réunies pour :\n${newSp.map(s=>'• '+s).join('\n')}\n\n🌡️ ${w.temp}°C · 💧 ${w.humidity}% · 💨 ${w.wind} km/h · 🕐 ${w.hour}h\n\nBonne chance ! 🍀`);
       await logAlerte(currentRegion.name, w.country, newSp, w);
-      await notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+currentRegion.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
+      await window.notifAdmin('🔔 <b>ALERTE ENVOYEE</b>\n\n📍 Zone : <b>'+currentRegion.name+'</b> ('+w.country+')\n🐜 Especes : '+newSp.join(', ')+'\n🌡 Temp : '+w.temp+'C  💧 '+w.humidity+'%  💨 '+w.wind+' km/h\n🕐 Heure : '+w.hour+'h\n👤 Utilisateur : '+(CFG.name||'anonyme'));
       sessionStorage.setItem(prevKey,JSON.stringify(ready));
       showToast('🐜 Alerte Telegram envoyée !');
     }
@@ -1626,18 +1647,7 @@ async function tg(text){
   catch(e){console.error(e);}
 }
 
-// ── NOTIFICATIONS ADMIN TELEGRAM ─────────────────────────────────
-const ADMIN_TG_TOKEN="8687019817:AAHweHAbO6vQDv3Wi4v2G8u-3Oxs5NNYWdM";
-const ADMIN_TG_CHAT="7567035939";
-async function notifAdmin(text){
-  try{
-    await fetch('https://api.telegram.org/bot'+ADMIN_TG_TOKEN+'/sendMessage',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({chat_id:ADMIN_TG_CHAT,text,parse_mode:'HTML'})
-    });
-  }catch(e){console.error('notifAdmin:',e);}
-}
+// notifAdmin est défini dans le module Firebase (window.notifAdmin)
 async function sendTestTelegram(){
   if(!CFG.token||!CFG.chatId){openSetup();return;}
   showToast('📨 Envoi en cours…');
@@ -1836,7 +1846,7 @@ async function submitRetour(type){
     }
     // Notif admin Telegram
     const icons={espece:'🐜',bug:'🐛',fonctionnalite:'💡',autre:'💬'};
-    await notifAdmin(icons[type]+' <b>'+notifText.split('\n')[0]+'</b>\n\n'+notifText.split('\n').slice(2).join('\n'));
+    await window.notifAdmin(icons[type]+' <b>'+notifText.split('\n')[0]+'</b>\n\n'+notifText.split('\n').slice(2).join('\n'));
     document.querySelectorAll('.retour-form').forEach(f=>f.classList.remove('active'));
     document.getElementById('retour-success').style.display='block';
     if(window._fbLogEvent)window._fbLogEvent('retour_envoye',{type});
@@ -1926,7 +1936,7 @@ async function doRegister(){
       zones:[], selectedSpecies:[]
     });
     CFG.name=pseudo;
-    await notifAdmin('👤 <b>NOUVEAU COMPTE CREE</b>\n\n🐜 Pseudo : <b>'+pseudo+'</b>\n📋 Prenom : '+(prenom||'non renseigne')+'\n📋 Nom : '+(nom||'non renseigne')+'\n📧 Email : '+email+'\n🔍 Source : '+(source||'non renseignee')+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR'));
+    await window.notifAdmin('👤 <b>NOUVEAU COMPTE CREE</b>\n\n🐜 Pseudo : <b>'+pseudo+'</b>\n📋 Prenom : '+(prenom||'non renseigne')+'\n📋 Nom : '+(nom||'non renseigne')+'\n📧 Email : '+email+'\n🔍 Source : '+(source||'non renseignee')+'\n🗓 Date : '+new Date().toLocaleDateString('fr-FR'));
     // onAuthStateChanged prend le relais
   }catch(e){
     errEl.textContent=authErrorMsg(e.code);
