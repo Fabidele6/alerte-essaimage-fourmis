@@ -2,8 +2,8 @@ name: Recap Soir 21h30
 
 on:
   schedule:
-    - cron: '30 19 * * *'  # 21h30 heure française (UTC+2 été / UTC+1 hiver)
-  workflow_dispatch:        # Permet de lancer manuellement depuis GitHub
+    - cron: '30 19 * * *'
+  workflow_dispatch:
 
 jobs:
   recap:
